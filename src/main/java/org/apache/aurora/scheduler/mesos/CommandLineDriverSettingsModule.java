@@ -50,6 +50,10 @@ public class CommandLineDriverSettingsModule extends AbstractModule {
       help = "Address for the mesos master, can be a socket address or zookeeper path.")
   private static final Arg<String> MESOS_MASTER_ADDRESS = Arg.create();
 
+  @CmdLine(name = "mesos_role",
+  help = "role defined in mesos, aurora register framework with this role")
+  private static final Arg<String> MESOS_ROLE = Arg.create();
+
   @VisibleForTesting
   static final String PRINCIPAL_KEY = "aurora_authentication_principal";
   @VisibleForTesting
@@ -108,12 +112,21 @@ public class CommandLineDriverSettingsModule extends AbstractModule {
 
   @Override
   protected void configure() {
-    FrameworkInfo frameworkInfo = FrameworkInfo.newBuilder()
-        .setUser(EXECUTOR_USER.get())
-        .setName(TWITTER_FRAMEWORK_NAME)
-        .setCheckpoint(REQUIRE_SLAVE_CHECKPOINT.get())
-        .setFailoverTimeout(FRAMEWORK_FAILOVER_TIMEOUT.get().as(Time.SECONDS))
-        .build();
+    FrameworkInfo.Builder builder = FrameworkInfo.newBuilder()
+            .setUser(EXECUTOR_USER.get())
+            .setName(TWITTER_FRAMEWORK_NAME)
+            .setCheckpoint(REQUIRE_SLAVE_CHECKPOINT.get())
+            .setFailoverTimeout(FRAMEWORK_FAILOVER_TIMEOUT.get().as(Time.SECONDS));
+    /**
+     * Mesos role should keep unset if no Mesos role specified in command line,
+     * should not use default role "*" instead.
+     * for detail please refer to https://issues.apache.org/jira/browse/MESOS-2309
+     */
+    if (MESOS_ROLE.hasAppliedValue()) {
+        LOG.info("MESOS_ROLE=" + MESOS_ROLE.get());
+        builder.setRole(MESOS_ROLE.get());
+    }
+    FrameworkInfo frameworkInfo = builder.build();
     DriverSettings settings =
         new DriverSettings(MESOS_MASTER_ADDRESS.get(), getCredentials(), frameworkInfo);
     bind(DriverSettings.class).toInstance(settings);

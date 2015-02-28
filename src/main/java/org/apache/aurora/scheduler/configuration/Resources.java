@@ -13,10 +13,14 @@
  */
 package org.apache.aurora.scheduler.configuration;
 
+import static java.util.Objects.requireNonNull;
+
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.logging.Logger;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
@@ -28,13 +32,18 @@ import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
+import com.google.common.collect.PeekingIterator;
 import com.google.common.collect.Sets;
 import com.twitter.common.quantity.Amount;
 import com.twitter.common.quantity.Data;
 
+import org.apache.aurora.scheduler.async.TaskContext;
+import org.apache.aurora.scheduler.async.TaskContextHolder;
 import org.apache.aurora.scheduler.base.Numbers;
+import org.apache.aurora.scheduler.mesos.TrackableResource;
 import org.apache.aurora.scheduler.storage.entities.ITaskConfig;
 import org.apache.mesos.Protos.Offer;
 import org.apache.mesos.Protos.Resource;
@@ -43,14 +52,12 @@ import org.apache.mesos.Protos.Value.Ranges;
 import org.apache.mesos.Protos.Value.Scalar;
 import org.apache.mesos.Protos.Value.Type;
 
-import static java.util.Objects.requireNonNull;
-
 /**
  * A container for multiple resource vectors.
  * TODO(wfarner): Collapse this in with ResourceAggregates AURORA-105.
  */
 public class Resources {
-
+	private static final Logger LOG = Logger.getLogger(Resources.class.getName());
   public static final String CPUS = "cpus";
   public static final String RAM_MB = "mem";
   public static final String DISK_MB = "disk";
@@ -107,17 +114,114 @@ public class Resources {
    * @return Mesos resources.
    */
   public List<Resource> toResourceList(Set<Integer> selectedPorts) {
-    ImmutableList.Builder<Resource> resourceBuilder =
-        ImmutableList.<Resource>builder()
-            .add(Resources.makeMesosResource(CPUS, numCpus))
-            .add(Resources.makeMesosResource(DISK_MB, disk.as(Data.MB)))
-            .add(Resources.makeMesosResource(RAM_MB, ram.as(Data.MB)));
-    if (!selectedPorts.isEmpty()) {
-      resourceBuilder.add(Resources.makeMesosRangeResource(Resources.PORTS, selectedPorts));
-    }
+  	TaskContext context = TaskContextHolder.getContext();
+    List<TrackableResource> offeredResources =  context.getTrackableResources();
+    ImmutableList.Builder<Resource> resourceBuilder = ImmutableList.<Resource> builder();
+    double leftNumCpus = numCpus;
+    double leftDisk = disk.as(Data.MB);
+    double leftRam = ram.as(Data.MB);
+
+    for (TrackableResource resource : offeredResources) {
+        switch (resource.getResource().getName()) {
+        case CPUS:
+            leftNumCpus = addResource(CPUS, resource, leftNumCpus, resourceBuilder);
+            break;
+        case DISK_MB:
+            leftDisk = addResource(DISK_MB, resource, leftDisk, resourceBuilder);
+            break;
+        case RAM_MB:
+            leftRam = addResource(RAM_MB, resource, leftRam, resourceBuilder);
+            break;
+        case PORTS:
+        	if(!selectedPorts.isEmpty()) {
+        		addPortResource(resource, selectedPorts, resourceBuilder);
+        	}
+            break;
+        default:
+            break;
+        }
+    }  	
 
     return resourceBuilder.build();
   }
+  
+	private double addResource(String key, TrackableResource resource, double left,
+	    ImmutableList.Builder<Resource> resourceBuilder) {
+		if (left <= 0) {
+			return left;
+		}
+		if (!resource.allocatable()) {
+			return left;
+		}
+		LOG.info("resource=" + resource + ",name=" + resource.getResource().getName() + ",role="
+		    + resource.getResource().getRole() + ", value="
+		    + resource.getResource().getScalar().getValue());
+		double availabeResource = resource.getAvailableResource();
+		if (left < availabeResource) {
+			resourceBuilder.add(Resources.makeMesosResource(key, left, resource.getResource().getRole()));
+			resource.allocate(left);
+			return 0;
+		} else {
+			resourceBuilder.add(Resources.makeMesosResource(key, availabeResource, resource.getResource()
+			    .getRole()));
+			resource.allocate(availabeResource);
+			return left - availabeResource;
+		}
+	}
+	
+	/**
+	 * only range type is accept when filtering, so support range only,
+	 * @param resource
+	 * @param selectedPorts
+	 */
+	private void addPortResource(TrackableResource resource, Set<Integer> selectedPorts,
+	    ImmutableList.Builder<Resource> resourceBuilder) {
+		Ranges portRange = resource.getResource().getRanges();
+		PeekingIterator<Integer> iterator = Iterators.peekingIterator(Sets.newTreeSet(selectedPorts)
+		    .iterator());
+		Range currentRange = null;
+		Ranges.Builder builder = Ranges.newBuilder();
+
+		while (iterator.hasNext()) {
+			int start = iterator.next();
+			int end = start;
+			currentRange = getRangeBelongTo(start, portRange);
+			if (currentRange == null) {// port is not in this resource
+				continue;
+			}
+			while (iterator.hasNext() && iterator.peek() == end + 1 && inRange(end, currentRange)) {
+				end++;
+				iterator.next();
+			}
+			// builder.add(com.google.common.collect.Range.closed(start, end));
+			builder.addRange(Range.newBuilder().setBegin(start).setEnd(end).build());
+		}
+		resourceBuilder.add(Resource.newBuilder()
+     .setName(PORTS)
+     .setType(Type.RANGES)
+     .setRole(resource.getResource().getRole())
+     .setRanges(builder.build())
+     .build());
+	}
+	
+	private Range getRangeBelongTo(Integer value, final Ranges ranges) {
+		for (Range range : ranges.getRangeList()) {
+			long offerRangeBegin = range.getBegin();
+			long offerRangeEnd = range.getEnd();
+			if(value >= offerRangeBegin && value <= offerRangeEnd) {
+				return range;
+			}			
+		}
+		return null;
+	}
+	
+	private boolean inRange(Integer value, Range range) {
+		if(value >= range.getBegin() && value <= range.getEnd()) {
+			return true;
+		}
+		return false;
+	}
+	
 
   /**
    * Convenience method for adapting to mesos resources without applying a port range.
@@ -298,7 +402,20 @@ public class Resources {
     return Resource.newBuilder().setName(name).setType(Type.SCALAR)
         .setScalar(Scalar.newBuilder().setValue(value)).build();
   }
-
+  
+  /**
+   * Creates a scalar mesos resource.
+   *
+   * @param name Name of the resource.
+   * @param value Value for the resource.
+   * @param role for the resource
+   * @return A mesos resource.
+   */
+  public static Resource makeMesosResource(String name, double value, String role) {
+    return Resource.newBuilder().setName(name).setType(Type.SCALAR)
+        .setScalar(Scalar.newBuilder().setValue(value)).setRole(role).build();
+  }  
+  
   private static final Function<com.google.common.collect.Range<Integer>, Range> RANGE_TRANSFORM =
       new Function<com.google.common.collect.Range<Integer>, Range>() {
         @Override

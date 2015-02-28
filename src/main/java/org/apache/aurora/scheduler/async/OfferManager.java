@@ -13,6 +13,12 @@
  */
 package org.apache.aurora.scheduler.async;
 
+import static java.util.Objects.requireNonNull;
+import static org.apache.aurora.gen.MaintenanceMode.DRAINED;
+import static org.apache.aurora.gen.MaintenanceMode.DRAINING;
+import static org.apache.aurora.gen.MaintenanceMode.NONE;
+import static org.apache.aurora.gen.MaintenanceMode.SCHEDULED;
+
 import java.util.Comparator;
 import java.util.Map;
 import java.util.Set;
@@ -45,19 +51,12 @@ import org.apache.aurora.scheduler.HostOffer;
 import org.apache.aurora.scheduler.async.TaskGroups.GroupKey;
 import org.apache.aurora.scheduler.events.PubsubEvent.DriverDisconnected;
 import org.apache.aurora.scheduler.events.PubsubEvent.EventSubscriber;
+import org.apache.aurora.scheduler.events.PubsubEvent.HostAttributesChanged;
 import org.apache.aurora.scheduler.mesos.Driver;
 import org.apache.aurora.scheduler.state.TaskAssigner.Assignment;
 import org.apache.aurora.scheduler.storage.entities.IHostAttributes;
 import org.apache.mesos.Protos.OfferID;
 import org.apache.mesos.Protos.SlaveID;
-
-import static java.util.Objects.requireNonNull;
-
-import static org.apache.aurora.gen.MaintenanceMode.DRAINED;
-import static org.apache.aurora.gen.MaintenanceMode.DRAINING;
-import static org.apache.aurora.gen.MaintenanceMode.NONE;
-import static org.apache.aurora.gen.MaintenanceMode.SCHEDULED;
-import static org.apache.aurora.scheduler.events.PubsubEvent.HostAttributesChanged;
 
 /**
  * Tracks the Offers currently known by the scheduler.
@@ -334,18 +333,22 @@ public interface OfferManager extends EventSubscriber {
     @Override
     public boolean launchFirst(Function<HostOffer, Assignment> acceptor, GroupKey groupKey)
         throws LaunchException {
-
+    	
       // It's important that this method is not called concurrently - doing so would open up the
       // possibility of a race between the same offers being accepted by different threads.
+			try {
+				for (HostOffer offer : hostOffers.getWeaklyConsistentOffers()) {
+					TaskContextHolder.setContext(new TaskContext(offer.getOffer()));
+					if (!hostOffers.isStaticallyBanned(offer, groupKey)
+					    && acceptOffer(offer, acceptor, groupKey)) {
+						return true;
+					}
+				}
 
-      for (HostOffer offer : hostOffers.getWeaklyConsistentOffers()) {
-        if (!hostOffers.isStaticallyBanned(offer, groupKey)
-            && acceptOffer(offer, acceptor, groupKey)) {
-          return true;
-        }
-      }
-
-      return false;
+				return false;
+			} finally {
+    		TaskContextHolder.clear();
+    	}
     }
 
     @Timed("offer_queue_accept_offer")
