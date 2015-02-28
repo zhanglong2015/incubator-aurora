@@ -301,11 +301,32 @@ public class Resources {
   public static Resources from(Offer offer) {
     requireNonNull(offer);
     return new Resources(
-        getScalarValue(offer, CPUS),
-        Amount.of((long) getScalarValue(offer, RAM_MB), Data.MB),
-        Amount.of((long) getScalarValue(offer, DISK_MB), Data.MB),
+        getSumScalarValue(offer, CPUS),
+        Amount.of((long) getSumScalarValue(offer, RAM_MB), Data.MB),
+        Amount.of((long) getSumScalarValue(offer, DISK_MB), Data.MB),
         getNumAvailablePorts(offer.getResourcesList()));
   }
+
+	/**
+	 * because in multiple role case, same resource type may has more than one resource in offer, such
+	 * as one resource with role "*", one resource with role "aurora". The offered resource should be
+	 * the sum value
+	 * 
+	 * @return
+	 */
+	private static double getSumScalarValue(Offer offer, String key) {
+		return getSumScalarValue(offer.getResourcesList(), key);
+	}
+
+	private static double getSumScalarValue(List<Resource> resources, String key) {
+		double retval = 0;
+		for (Resource resource : resources) {
+			if (resource.getName().equals(key)) {
+				retval += resource.getScalar().getValue();
+			}
+		}
+		return retval;
+	}  
 
   @VisibleForTesting
   public static final Resources NONE =
