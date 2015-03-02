@@ -338,7 +338,7 @@ public interface OfferManager extends EventSubscriber {
       // possibility of a race between the same offers being accepted by different threads.
 			try {
 				for (HostOffer offer : hostOffers.getWeaklyConsistentOffers()) {
-					TaskContextHolder.setContext(new TaskContext(offer.getOffer()));
+					TaskContextHolder.setResourceContext(new ResourceContext(offer.getOffer()));
 					if (!hostOffers.isStaticallyBanned(offer, groupKey)
 					    && acceptOffer(offer, acceptor, groupKey)) {
 						return true;

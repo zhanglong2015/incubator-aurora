@@ -10,11 +10,11 @@ import org.apache.aurora.scheduler.mesos.TrackableResource;
 import org.apache.mesos.Protos.Offer;
 import org.apache.mesos.Protos.Resource;
 
-public class TaskContext {
+public class ResourceContext {
 	private List<TrackableResource> trackableResource = new LinkedList<TrackableResource>();
 	private static final String DEFAULT_MESOS_ROLE = "*";
 	
-	public TaskContext(Offer offer) {
+	public ResourceContext(Offer offer) {
     List<Resource> resources = offer.getResourcesList();    
     for (Resource resource : resources) {
     	trackableResource.add(new TrackableResource(resource));

@@ -16,7 +16,6 @@ package org.apache.aurora.scheduler.configuration;
 import static java.util.Objects.requireNonNull;
 
 import java.util.Collections;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -40,7 +39,7 @@ import com.google.common.collect.Sets;
 import com.twitter.common.quantity.Amount;
 import com.twitter.common.quantity.Data;
 
-import org.apache.aurora.scheduler.async.TaskContext;
+import org.apache.aurora.scheduler.async.ResourceContext;
 import org.apache.aurora.scheduler.async.TaskContextHolder;
 import org.apache.aurora.scheduler.base.Numbers;
 import org.apache.aurora.scheduler.mesos.TrackableResource;
@@ -114,7 +113,7 @@ public class Resources {
    * @return Mesos resources.
    */
   public List<Resource> toResourceList(Set<Integer> selectedPorts) {
-  	TaskContext context = TaskContextHolder.getContext();
+  	ResourceContext context = TaskContextHolder.getResourceContext();
     List<TrackableResource> offeredResources =  context.getTrackableResources();
     ImmutableList.Builder<Resource> resourceBuilder = ImmutableList.<Resource> builder();
     double leftNumCpus = numCpus;
