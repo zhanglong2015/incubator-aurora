@@ -44,4 +44,6 @@ public class TrackableResource {
         this.left -= allocated;
     }
 
+    public String getRole() { return  resource.getRole();}
+
 }

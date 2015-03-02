@@ -153,18 +153,17 @@ public class Resources {
 			return left;
 		}
 		LOG.info("resource=" + resource + ",name=" + resource.getResource().getName() + ",role="
-		    + resource.getResource().getRole() + ", value="
+		    + resource.getRole() + ", value="
 		    + resource.getResource().getScalar().getValue());
-		double availabeResource = resource.getAvailableResource();
-		if (left < availabeResource) {
-			resourceBuilder.add(Resources.makeMesosResource(key, left, resource.getResource().getRole()));
+		double availableResource = resource.getAvailableResource();
+		if (left < availableResource) {
+			resourceBuilder.add(Resources.makeMesosResource(key, left, resource.getRole()));
 			resource.allocate(left);
 			return 0;
 		} else {
-			resourceBuilder.add(Resources.makeMesosResource(key, availabeResource, resource.getResource()
-			    .getRole()));
-			resource.allocate(availabeResource);
-			return left - availabeResource;
+			resourceBuilder.add(Resources.makeMesosResource(key, availableResource, resource.getRole()));
+			resource.allocate(availableResource);
+			return left - availableResource;
 		}
 	}
 	
