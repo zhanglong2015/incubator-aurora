@@ -26,6 +26,16 @@ public class ResourceContext {
   	return trackableResource;
   }
   
+//  public Set<Long> getAllAvaiableRangeResources(String key) {
+//  	Set<Long> totalResources = Sets.newHashSet();
+//  	for(TrackableResource resource: trackableResource) {
+//  		if(resource.getResource().getName().equals("key")) {
+//  			totalResources.addAll(resource.getAvailableRangeResources());
+//  		}
+//  	}
+//  	return totalResources;
+//  }
+
   private static final Ordering<TrackableResource> ROLE_FIRST = Ordering.from(
       new Comparator<TrackableResource>() {
         @Override

@@ -16,6 +16,7 @@ package org.apache.aurora.scheduler.configuration;
 import static java.util.Objects.requireNonNull;
 
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -40,7 +41,7 @@ import com.twitter.common.quantity.Amount;
 import com.twitter.common.quantity.Data;
 
 import org.apache.aurora.scheduler.async.ResourceContext;
-import org.apache.aurora.scheduler.async.TaskContextHolder;
+import org.apache.aurora.scheduler.async.ResourceContextHolder;
 import org.apache.aurora.scheduler.base.Numbers;
 import org.apache.aurora.scheduler.mesos.TrackableResource;
 import org.apache.aurora.scheduler.storage.entities.ITaskConfig;
@@ -71,7 +72,16 @@ public class Resources {
               DiscreteDomain.integers());
         }
       };
-
+//  public static final Function<Range, Set<Long>> RANGE_TO_MEMBERS =
+//      new Function<Range, Set<Long>>() {
+//        @Override
+//        public Set<Long> apply(Range range) {
+//          return ContiguousSet.create(
+//              com.google.common.collect.Range.closed(range.getBegin(),  range.getEnd()),
+//              DiscreteDomain.longs());
+//        }
+//      };    
+      
   private final double numCpus;
   private final Amount<Long, Data> disk;
   private final Amount<Long, Data> ram;
@@ -113,7 +123,7 @@ public class Resources {
    * @return Mesos resources.
    */
   public List<Resource> toResourceList(Set<Integer> selectedPorts) {
-  	ResourceContext context = TaskContextHolder.getResourceContext();
+  	ResourceContext context = ResourceContextHolder.getResourceContext();
     List<TrackableResource> offeredResources =  context.getTrackableResources();
     ImmutableList.Builder<Resource> resourceBuilder = ImmutableList.<Resource> builder();
     double leftNumCpus = numCpus;
@@ -123,13 +133,13 @@ public class Resources {
     for (TrackableResource resource : offeredResources) {
         switch (resource.getResource().getName()) {
         case CPUS:
-            leftNumCpus = addResource(CPUS, resource, leftNumCpus, resourceBuilder);
+            leftNumCpus -= allocateSclarResource(CPUS, resource, leftNumCpus, resourceBuilder);
             break;
         case DISK_MB:
-            leftDisk = addResource(DISK_MB, resource, leftDisk, resourceBuilder);
+            leftDisk -= allocateSclarResource(DISK_MB, resource, leftDisk, resourceBuilder);
             break;
         case RAM_MB:
-            leftRam = addResource(RAM_MB, resource, leftRam, resourceBuilder);
+            leftRam -= allocateSclarResource(RAM_MB, resource, leftRam, resourceBuilder);
             break;
         case PORTS:
         	if(!selectedPorts.isEmpty()) {
@@ -144,28 +154,25 @@ public class Resources {
     return resourceBuilder.build();
   }
   
-	private double addResource(String key, TrackableResource resource, double left,
+  /**
+   * 
+   * @param key
+   * @param resource
+   * @param left
+   * @param resourceBuilder
+   * @return actually allocated resource
+   */
+	private double allocateSclarResource(String key, TrackableResource resource, double left,
 	    ImmutableList.Builder<Resource> resourceBuilder) {
-		if (left <= 0) {
-			return left;
-		}
-		if (!resource.allocatable()) {
-			return left;
-		}
+		double allocated = resource.allocateFromScalar(left);		
+
 		LOG.info("resource=" + resource + ",name=" + resource.getResource().getName() + ",role="
 		    + resource.getResource().getRole() + ", value="
 		    + resource.getResource().getScalar().getValue());
-		double availabeResource = resource.getAvailableResource();
-		if (left < availabeResource) {
-			resourceBuilder.add(Resources.makeMesosResource(key, left, resource.getResource().getRole()));
-			resource.allocate(left);
-			return 0;
-		} else {
-			resourceBuilder.add(Resources.makeMesosResource(key, availabeResource, resource.getResource()
-			    .getRole()));
-			resource.allocate(availabeResource);
-			return left - availabeResource;
-		}
+		if (allocated > 0) {
+			resourceBuilder.add(Resources.makeMesosResource(key, allocated, resource.getResource().getRole()));
+		} 
+		return allocated;
 	}
 	
 	/**
@@ -194,6 +201,7 @@ public class Resources {
 			}
 			// builder.add(com.google.common.collect.Range.closed(start, end));
 			builder.addRange(Range.newBuilder().setBegin(start).setEnd(end).build());
+			LOG.info("----add range: begin=" + start + ";end=" + end);
 		}
 		resourceBuilder.add(Resource.newBuilder()
      .setName(PORTS)
@@ -402,14 +410,21 @@ public class Resources {
     };
   }
 
-  private static Iterable<Range> getPortRanges(List<Resource> resources) {
-    Resource resource = getResource(resources, Resources.PORTS);
-    if (resource == null) {
-      return ImmutableList.of();
-    }
-
-    return resource.getRanges().getRangeList();
-  }
+	private static Iterable<Range> getPortRanges(List<Resource> resources) {
+		List<Range> rangeList = Lists.newLinkedList();
+		for (Resource resource : resources) {
+			if (Resources.PORTS.equals(resource.getName())) {
+				rangeList.addAll(resource.getRanges().getRangeList());
+			}
+		}
+		return rangeList;
+		// Resource resource = getResource(resources, Resources.PORTS);
+		// if (resource == null) {
+		// return ImmutableList.of();
+		// }
+		//
+		// return resource.getRanges().getRangeList();
+	}
 
   /**
    * Creates a scalar mesos resource.
@@ -519,25 +534,41 @@ public class Resources {
    */
   public static Set<Integer> getPorts(Offer offer, int numPorts)
       throws InsufficientResourcesException {
-
     requireNonNull(offer);
-
     if (numPorts == 0) {
       return ImmutableSet.of();
     }
 
-    List<Integer> availablePorts = Lists.newArrayList(Sets.newHashSet(
-        Iterables.concat(
-            Iterables.transform(getPortRanges(offer.getResourcesList()), RANGE_TO_MEMBERS))));
-
+    List<Integer> availablePorts = getOfferedPorts(offer);
     if (availablePorts.size() < numPorts) {
       throw new InsufficientResourcesException(
           String.format("Could not get %d ports from %s", numPorts, offer));
     }
-
-    Collections.shuffle(availablePorts);
     return ImmutableSet.copyOf(availablePorts.subList(0, numPorts));
   }
+  
+  private static List<Integer> getOfferedPorts(Offer offer) {
+  	Iterable<Resource> portResources = Iterables.filter(offer.getResourcesList(), withName(Resources.PORTS)); 
+  	List<Resource> roleFirstPortResourceList = ROLE_FIRST.sortedCopy(portResources);
+		List<Integer> offeredPorts = Lists.newLinkedList(Iterables.concat(Iterables.transform(
+		    getPortRanges(roleFirstPortResourceList), RANGE_TO_MEMBERS)));
+  	return offeredPorts;
+  }
+  
+  private static final Ordering<Resource> ROLE_FIRST = Ordering.from(
+      new Comparator<Resource>() {
+        @Override
+        public int compare(Resource r0, Resource r1) {
+        	 if (r0.getRole().equals(r1.getRole())) {
+             return r0.getName().compareTo(r1.getName());
+         }
+         if ("*".equals(r0.getRole())) {
+             return 1;
+         } else {
+             return -1;
+         }
+        }
+      });    
 
   /**
    * A Resources object is greater than another iff _all_ of its resource components are greater
