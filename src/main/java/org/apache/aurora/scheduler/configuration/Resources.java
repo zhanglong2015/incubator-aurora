@@ -173,7 +173,7 @@ public class Resources {
 		double allocated = resource.allocateFromScalar(left);		
 
 		LOG.info("resource=" + resource + ",name=" + resource.getResource().getName() + ",role="
-		    + resource.getResource().getRole() + ", value="
+		    + resource.getRole() + ", value="
 		    + resource.getResource().getScalar().getValue());
 		if (allocated > 0) {
 			resourceBuilder.add(Resources.makeMesosResource(key, allocated, resource.getResource().getRole()));
