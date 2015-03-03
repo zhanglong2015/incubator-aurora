@@ -122,37 +122,43 @@ public class Resources {
    * @param selectedPorts The ports selected, to be applied as concrete task ranges.
    * @return Mesos resources.
    */
-  public List<Resource> toResourceList(Set<Integer> selectedPorts) {
-  	ResourceContext context = ResourceContextHolder.getResourceContext();
-    List<TrackableResource> offeredResources =  context.getTrackableResources();
-    ImmutableList.Builder<Resource> resourceBuilder = ImmutableList.<Resource> builder();
-    double leftNumCpus = numCpus;
-    double leftDisk = disk.as(Data.MB);
-    double leftRam = ram.as(Data.MB);
+	public List<Resource> toResourceList(Set<Integer> selectedPorts) {
+		ResourceContext context = ResourceContextHolder.getResourceContext();
+		List<TrackableResource> offeredResources = context.getTrackableResources();
+		ImmutableList.Builder<Resource> resourceBuilder = ImmutableList.<Resource> builder();
+		double leftNumCpus = numCpus;
+		double leftDisk = disk.as(Data.MB);
+		double leftRam = ram.as(Data.MB);
 
-    for (TrackableResource resource : offeredResources) {
-        switch (resource.getResource().getName()) {
-        case CPUS:
-            leftNumCpus -= allocateSclarResource(CPUS, resource, leftNumCpus, resourceBuilder);
-            break;
-        case DISK_MB:
-            leftDisk -= allocateSclarResource(DISK_MB, resource, leftDisk, resourceBuilder);
-            break;
-        case RAM_MB:
-            leftRam -= allocateSclarResource(RAM_MB, resource, leftRam, resourceBuilder);
-            break;
-        case PORTS:
-        	if(!selectedPorts.isEmpty()) {
-        		addPortResource(resource, selectedPorts, resourceBuilder);
-        	}
-            break;
-        default:
-            break;
-        }
-    }  	
+		for (TrackableResource resource : offeredResources) {
+			switch (resource.getResource().getName()) {
+			case CPUS:
+				if (leftNumCpus > 0) {
+					leftNumCpus -= allocateSclarResource(CPUS, resource, leftNumCpus, resourceBuilder);
+				}
+				break;
+			case DISK_MB:
+				if (leftDisk > 0) {
+					leftDisk -= allocateSclarResource(DISK_MB, resource, leftDisk, resourceBuilder);
+				}
+				break;
+			case RAM_MB:
+				if (leftRam > 0) {
+					leftRam -= allocateSclarResource(RAM_MB, resource, leftRam, resourceBuilder);
+				}
+				break;
+			case PORTS:
+				if (!selectedPorts.isEmpty()) {
+					addPortResource(resource, selectedPorts, resourceBuilder);
+				}
+				break;
+			default:
+				break;
+			}
+		}
 
-    return resourceBuilder.build();
-  }
+		return resourceBuilder.build();
+	}
   
   /**
    * 
