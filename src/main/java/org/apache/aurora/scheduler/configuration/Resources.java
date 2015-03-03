@@ -213,12 +213,14 @@ public class Resources {
 			builder.addRange(Range.newBuilder().setBegin(start).setEnd(end).build());
 			LOG.info("----add range: begin=" + start + ";end=" + end);
 		}
-		resourceBuilder.add(Resource.newBuilder()
-     .setName(PORTS)
-     .setType(Type.RANGES)
-     .setRole(resource.getResource().getRole())
-     .setRanges(builder.build())
-     .build());
+		if(builder.getRangeCount() > 0) {
+			resourceBuilder.add(Resource.newBuilder()
+	     .setName(PORTS)
+	     .setType(Type.RANGES)
+	     .setRole(resource.getResource().getRole())
+	     .setRanges(builder.build())
+	     .build());
+		}
 	}
 	
 	private Range getRangeBelongTo(Integer value, final Ranges ranges) {
