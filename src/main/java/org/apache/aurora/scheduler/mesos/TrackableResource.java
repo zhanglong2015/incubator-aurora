@@ -62,8 +62,8 @@ public class TrackableResource {
 	public Set<Long> getAvailableRangeResources() {
 		Set<Long> allocatedRangeSet = Sets.newHashSet(Iterables.concat(Iterables.transform(resource
 		    .getRanges().getRangeList(), RANGE_TO_MEMBERS)));
-
-		return Sets.symmetricDifference(allocatedRangeSet, usedRangeResource);
+		Set<Long> retval = Sets.newHashSet();
+		return Sets.symmetricDifference(allocatedRangeSet, usedRangeResource).copyInto(retval);
 	}
 
 	public Set<String> getAvailableSetResources() {

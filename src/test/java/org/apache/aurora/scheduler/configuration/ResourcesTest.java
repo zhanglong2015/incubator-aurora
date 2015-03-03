@@ -13,9 +13,17 @@
  */
 package org.apache.aurora.scheduler.configuration;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+
+import java.util.List;
 import java.util.Set;
 
 import com.google.common.base.Function;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.twitter.common.collections.Pair;
@@ -23,25 +31,68 @@ import com.twitter.common.quantity.Amount;
 import com.twitter.common.quantity.Data;
 
 import org.apache.aurora.gen.TaskConfig;
+import org.apache.aurora.scheduler.async.ResourceContext;
+import org.apache.aurora.scheduler.async.ResourceContextHolder;
 import org.apache.aurora.scheduler.configuration.Resources.InsufficientResourcesException;
 import org.apache.aurora.scheduler.storage.entities.ITaskConfig;
 import org.apache.mesos.Protos;
+import org.apache.mesos.Protos.FrameworkID;
+import org.apache.mesos.Protos.Offer;
+import org.apache.mesos.Protos.OfferID;
 import org.apache.mesos.Protos.Resource;
+import org.apache.mesos.Protos.SlaveID;
 import org.apache.mesos.Protos.Value.Range;
 import org.apache.mesos.Protos.Value.Ranges;
 import org.apache.mesos.Protos.Value.Type;
+import org.junit.Before;
+import org.junit.After;
 import org.junit.Test;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 public class ResourcesTest {
 
   private static final String NAME = "resource_name";
+  private static final String HOST = "slave-host";
+  private static final ITaskConfig TASK = ITaskConfig.build(new TaskConfig()
+  .setNumCpus(1.0)
+  .setRamMb(1024)
+  .setDiskMb(2048)
+  .setRequestedPorts(ImmutableSet.of("http", "debug")));
+  
 
+	List<Resource> mockOfferResourceList() {
+		Resource portResource = Resource
+		    .newBuilder()
+		    .setType(Type.RANGES)
+		    .setName(Resources.PORTS)
+		    .setRole(Resources.MESOS_DEFAULT_ROLE)
+		    .setRanges(
+		        Ranges.newBuilder().addRange(Range.newBuilder().setBegin(80).setEnd(80).build())
+		            .addRange(Range.newBuilder().setBegin(443).setEnd(443).build())).build();
+
+		ImmutableList.Builder<Resource> resourceBuilder = ImmutableList.<Resource> builder()
+		    .add(Resources.makeMesosResource(Resources.CPUS, TASK.getNumCpus(), Resources.MESOS_DEFAULT_ROLE))
+		    .add(Resources.makeMesosResource(Resources.DISK_MB, TASK.getDiskMb(), Resources.MESOS_DEFAULT_ROLE))
+		    .add(Resources.makeMesosResource(Resources.RAM_MB, TASK.getRamMb(), Resources.MESOS_DEFAULT_ROLE)).add(portResource);
+		return resourceBuilder.build();
+	}
+  
+  @Before
+  public void setup() {
+    Offer MESOS_OFFER = Offer.newBuilder()
+        .setSlaveId(SlaveID.newBuilder().setValue("slave-id"))
+        .setHostname(HOST)
+        .setFrameworkId(FrameworkID.newBuilder().setValue("framework-id").build())
+        .setId(OfferID.newBuilder().setValue("offer-id"))
+        .addAllResources(mockOfferResourceList())
+        .build();
+  	ResourceContextHolder.setResourceContext(new ResourceContext(MESOS_OFFER));
+  }
+  
+  @After
+  public void tearDown() {
+  	ResourceContextHolder.clear();
+  }
+  
   @Test
   public void testPortRangeExact() {
     Resource portsResource = createPortRange(Pair.of(1, 5));
@@ -171,12 +222,6 @@ public class ResourcesTest {
         ImmutableSet.of(8, 2, 4, 5, 7, 9, 1));
   }
 
-  private static final ITaskConfig TASK = ITaskConfig.build(new TaskConfig()
-      .setNumCpus(1.0)
-      .setRamMb(1024)
-      .setDiskMb(2048)
-      .setRequestedPorts(ImmutableSet.of("http", "debug")));
-
   private static void assertLeftIsLarger(Resources left, Resources right) {
     assertTrue(left.greaterThanOrEqual(right));
     assertFalse(right.greaterThanOrEqual(left));
@@ -212,10 +257,10 @@ public class ResourcesTest {
     Set<Integer> ports = ImmutableSet.of(80, 443);
     assertEquals(
         ImmutableSet.of(
-            Resources.makeMesosResource(Resources.CPUS, TASK.getNumCpus()),
-            Resources.makeMesosResource(Resources.RAM_MB, TASK.getRamMb()),
-            Resources.makeMesosResource(Resources.DISK_MB, TASK.getDiskMb()),
-            Resources.makeMesosRangeResource(Resources.PORTS, ports)),
+            Resources.makeMesosResource(Resources.CPUS, TASK.getNumCpus(), Resources.MESOS_DEFAULT_ROLE),
+            Resources.makeMesosResource(Resources.DISK_MB, TASK.getDiskMb(), Resources.MESOS_DEFAULT_ROLE),
+            Resources.makeMesosResource(Resources.RAM_MB, TASK.getRamMb(), Resources.MESOS_DEFAULT_ROLE),
+            Resources.makeMesosRangeResource(Resources.PORTS, ports, Resources.MESOS_DEFAULT_ROLE)),
         ImmutableSet.copyOf(resources.toResourceList(ports)));
   }
 
@@ -239,14 +284,14 @@ public class ResourcesTest {
     Resources resources = Resources.from(TASK);
     assertEquals(
         ImmutableSet.of(
-            Resources.makeMesosResource(Resources.CPUS, TASK.getNumCpus()),
-            Resources.makeMesosResource(Resources.RAM_MB, TASK.getRamMb()),
-            Resources.makeMesosResource(Resources.DISK_MB, TASK.getDiskMb())),
+            Resources.makeMesosResource(Resources.CPUS, TASK.getNumCpus(), Resources.MESOS_DEFAULT_ROLE),            
+            Resources.makeMesosResource(Resources.DISK_MB, TASK.getDiskMb(), Resources.MESOS_DEFAULT_ROLE),
+            Resources.makeMesosResource(Resources.RAM_MB, TASK.getRamMb(), Resources.MESOS_DEFAULT_ROLE)),
         ImmutableSet.copyOf(resources.toResourceList(ImmutableSet.<Integer>of())));
   }
 
   private void expectRanges(Set<Pair<Long, Long>> expected, Set<Integer> values) {
-    Resource resource = Resources.makeMesosRangeResource(NAME, values);
+    Resource resource = Resources.makeMesosRangeResource(NAME, values, Resources.MESOS_DEFAULT_ROLE);
     assertEquals(Type.RANGES, resource.getType());
     assertEquals(NAME, resource.getName());
 

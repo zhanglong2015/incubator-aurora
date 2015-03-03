@@ -13,8 +13,6 @@
  */
 package org.apache.aurora.scheduler.configuration;
 
-import static java.util.Objects.requireNonNull;
-
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
@@ -24,6 +22,8 @@ import java.util.logging.Logger;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
+import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 import com.google.common.collect.ContiguousSet;
@@ -52,6 +52,8 @@ import org.apache.mesos.Protos.Value.Ranges;
 import org.apache.mesos.Protos.Value.Scalar;
 import org.apache.mesos.Protos.Value.Type;
 
+import static java.util.Objects.requireNonNull;
+
 /**
  * A container for multiple resource vectors.
  * TODO(wfarner): Collapse this in with ResourceAggregates AURORA-105.
@@ -62,6 +64,7 @@ public class Resources {
   public static final String RAM_MB = "mem";
   public static final String DISK_MB = "disk";
   public static final String PORTS = "ports";
+  public static final String MESOS_DEFAULT_ROLE = "*";
 
   private static final Function<Range, Set<Integer>> RANGE_TO_MEMBERS =
       new Function<Range, Set<Integer>>() {
@@ -124,6 +127,7 @@ public class Resources {
    */
 	public List<Resource> toResourceList(Set<Integer> selectedPorts) {
 		ResourceContext context = ResourceContextHolder.getResourceContext();
+		Preconditions.checkNotNull(context);
 		List<TrackableResource> offeredResources = context.getTrackableResources();
 		ImmutableList.Builder<Resource> resourceBuilder = ImmutableList.<Resource> builder();
 		double leftNumCpus = numCpus;
@@ -476,10 +480,11 @@ public class Resources {
    * @return A mesos ranges resource.
    */
   @VisibleForTesting
-  public static Resource makeMesosRangeResource(String name, Set<Integer> values) {
+  public static Resource makeMesosRangeResource(String name, Set<Integer> values, String role) {
     return Resource.newBuilder()
         .setName(name)
         .setType(Type.RANGES)
+        .setRole(role)
         .setRanges(Ranges.newBuilder()
             .addAllRange(Iterables.transform(Numbers.toRanges(values), RANGE_TRANSFORM)))
         .build();
@@ -529,7 +534,7 @@ public class Resources {
       super(message);
     }
   }
-
+  
   /**
    * Attempts to grab {@code numPorts} from the given resource {@code offer}.
    *
@@ -540,26 +545,74 @@ public class Resources {
    */
   public static Set<Integer> getPorts(Offer offer, int numPorts)
       throws InsufficientResourcesException {
+
     requireNonNull(offer);
+
     if (numPorts == 0) {
       return ImmutableSet.of();
     }
 
-    List<Integer> availablePorts = getOfferedPorts(offer);
+    List<Integer> availablePorts = Lists.newArrayList(Sets.newHashSet(
+        Iterables.concat(
+            Iterables.transform(getPortRanges(offer.getResourcesList()), RANGE_TO_MEMBERS))));
+
     if (availablePorts.size() < numPorts) {
       throw new InsufficientResourcesException(
           String.format("Could not get %d ports from %s", numPorts, offer));
     }
+
+    Collections.shuffle(availablePorts);
     return ImmutableSet.copyOf(availablePorts.subList(0, numPorts));
+  }  
+
+  /**
+   * Attempts to grab {@code numPorts} from the given resource {@code offer}.
+   *
+   * @param offer The offer to grab ports from.
+   * @param numPorts The number of ports to grab.
+   * @return The set of ports grabbed.
+   * @throws InsufficientResourcesException if not enough ports were available.
+   */
+  public static Set<Integer> allocatePorts(int numPorts)
+      throws InsufficientResourcesException {
+    if (numPorts == 0) {
+      return ImmutableSet.of();
+    }
+    
+    Set<Integer> allocatedPorts = doAllocatePorts(numPorts);
+    if (allocatedPorts.size() < numPorts) {
+      throw new InsufficientResourcesException(
+          String.format("Could not get %d ports from %s", numPorts));
+    }
+    return allocatedPorts;
   }
   
-  private static List<Integer> getOfferedPorts(Offer offer) {
-  	Iterable<Resource> portResources = Iterables.filter(offer.getResourcesList(), withName(Resources.PORTS)); 
-  	List<Resource> roleFirstPortResourceList = ROLE_FIRST.sortedCopy(portResources);
-		List<Integer> offeredPorts = Lists.newLinkedList(Iterables.concat(Iterables.transform(
-		    getPortRanges(roleFirstPortResourceList), RANGE_TO_MEMBERS)));
-  	return offeredPorts;
+  private static Set<Integer> doAllocatePorts(int numPorts) {
+  	Set<Integer> ports = Sets.newHashSet();
+  	int i = numPorts;
+    List<TrackableResource> trackableResources = ResourceContextHolder.getResourceContext().getTrackableResources();
+    while(i > 0) {
+    	for(TrackableResource resource:trackableResources) {
+    		if(PORTS.equals(resource.getResource().getName())) {
+	    		Optional<Long> port = resource.allocateFromRange();
+	    		if(port.isPresent()) {
+	    			ports.add(port.get().intValue());
+	    			break;
+	    		}
+    		}
+    	}
+    	i--;
+    }
+    return ports;
   }
+  
+//  private static List<Integer> getOfferedPorts(Offer offer) {
+//  	Iterable<Resource> portResources = Iterables.filter(offer.getResourcesList(), withName(Resources.PORTS)); 
+//  	List<Resource> roleFirstPortResourceList = ROLE_FIRST.sortedCopy(portResources);
+//		List<Integer> offeredPorts = Lists.newLinkedList(Iterables.concat(Iterables.transform(
+//		    getPortRanges(roleFirstPortResourceList), RANGE_TO_MEMBERS)));
+//  	return offeredPorts;
+//  }
   
   private static final Ordering<Resource> ROLE_FIRST = Ordering.from(
       new Comparator<Resource>() {
