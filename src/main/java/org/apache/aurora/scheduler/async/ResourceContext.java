@@ -11,43 +11,43 @@ import org.apache.mesos.Protos.Offer;
 import org.apache.mesos.Protos.Resource;
 
 public class ResourceContext {
-	private List<TrackableResource> trackableResource = new LinkedList<TrackableResource>();
-	private static final String DEFAULT_MESOS_ROLE = "*";
-	
-	public ResourceContext(Offer offer) {
+  private List<TrackableResource> trackableResource = new LinkedList<TrackableResource>();
+  private static final String DEFAULT_MESOS_ROLE = "*";
+  
+  public ResourceContext(Offer offer) {
     List<Resource> resources = offer.getResourcesList();    
     for (Resource resource : resources) {
-    	trackableResource.add(new TrackableResource(resource));
+      trackableResource.add(new TrackableResource(resource));
     }
     trackableResource = ROLE_FIRST.sortedCopy(trackableResource);
-	}
-	
+  }
+  
   public List<TrackableResource> getTrackableResources() {
-  	return trackableResource;
+    return trackableResource;
   }
   
 //  public Set<Long> getAllAvaiableRangeResources(String key) {
-//  	Set<Long> totalResources = Sets.newHashSet();
-//  	for(TrackableResource resource: trackableResource) {
-//  		if(resource.getResource().getName().equals("key")) {
-//  			totalResources.addAll(resource.getAvailableRangeResources());
-//  		}
-//  	}
-//  	return totalResources;
+//    Set<Long> totalResources = Sets.newHashSet();
+//    for(TrackableResource resource: trackableResource) {
+//      if(resource.getResource().getName().equals("key")) {
+//        totalResources.addAll(resource.getAvailableRangeResources());
+//      }
+//    }
+//    return totalResources;
 //  }
 
   private static final Ordering<TrackableResource> ROLE_FIRST = Ordering.from(
       new Comparator<TrackableResource>() {
         @Override
         public int compare(TrackableResource r0, TrackableResource r1) {
-        	 if (r0.getResource().getRole().equals(r1.getResource().getRole())) {
-             return r0.getResource().getName().compareTo(r1.getResource().getName());
-         }
-         if (DEFAULT_MESOS_ROLE.equals(r0.getResource().getRole())) {
-             return 1;
-         } else {
-             return -1;
-         }
+          if (r0.getResource().getRole().equals(r1.getResource().getRole())) {
+            return r0.getResource().getName().compareTo(r1.getResource().getName());
+          }
+          if (DEFAULT_MESOS_ROLE.equals(r0.getResource().getRole())) {
+            return 1;
+          } else {
+            return -1;
+          }
         }
-      });  
+      });
 }

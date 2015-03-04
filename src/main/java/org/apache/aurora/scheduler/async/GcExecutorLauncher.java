@@ -214,13 +214,13 @@ public class GcExecutorLauncher implements TaskLauncher {
     executor.execute(new Runnable() {
       @Override
       public void run() {
-				try {
-					ResourceContextHolder.setResourceContext(new ResourceContext(offer.getOffer()));
-					driver.launchTask(offer.getOffer().getId(),
-					    makeGcTask(offer.getOffer().getHostname(), offer.getOffer().getSlaveId()));
-				} finally {
-      		ResourceContextHolder.clear();
-      	}
+        try {
+          ResourceContextHolder.setResourceContext(new ResourceContext(offer.getOffer()));
+          driver.launchTask(offer.getOffer().getId(),
+              makeGcTask(offer.getOffer().getHostname(), offer.getOffer().getSlaveId()));
+        } finally {
+          ResourceContextHolder.clear();
+        }
       }
     });
     offersConsumed.incrementAndGet();

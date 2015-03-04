@@ -74,17 +74,7 @@ public class Resources {
               com.google.common.collect.Range.closed((int) range.getBegin(), (int) range.getEnd()),
               DiscreteDomain.integers());
         }
-      };
-//  public static final Function<Range, Set<Long>> RANGE_TO_MEMBERS =
-//      new Function<Range, Set<Long>>() {
-//        @Override
-//        public Set<Long> apply(Range range) {
-//          return ContiguousSet.create(
-//              com.google.common.collect.Range.closed(range.getBegin(),  range.getEnd()),
-//              DiscreteDomain.longs());
-//        }
-//      };    
-      
+      };      
   private final double numCpus;
   private final Amount<Long, Data> disk;
   private final Amount<Long, Data> ram;
@@ -125,47 +115,48 @@ public class Resources {
    * @param selectedPorts The ports selected, to be applied as concrete task ranges.
    * @return Mesos resources.
    */
-  public List<Resource> toResourceList(Set<Integer> selectedPorts) {
-    ResourceContext context = ResourceContextHolder.getResourceContext();
-    Preconditions.checkNotNull(context);
-    List<TrackableResource> offeredResources = context.getTrackableResources();
-    ImmutableList.Builder<Resource> resourceBuilder = ImmutableList.<Resource> builder();
-    double leftNumCpus = numCpus;
-    double leftDisk = disk.as(Data.MB);
-    double leftRam = ram.as(Data.MB);
-    Set<Integer> leftPorts = Sets.newHashSet(selectedPorts);
-    
-    for (TrackableResource resource : offeredResources) {
-      switch (resource.getResource().getName()) {
-      case CPUS:
-        if (leftNumCpus > 0) {
-          leftNumCpus -= allocateSclarResource(CPUS, resource, leftNumCpus, resourceBuilder);
-        }
-        break;
-      case DISK_MB:
-        if (leftDisk > 0) {
-          leftDisk -= allocateSclarResource(DISK_MB, resource, leftDisk, resourceBuilder);
-        }
-        break;
-      case RAM_MB:
-        if (leftRam > 0) {
-          leftRam -= allocateSclarResource(RAM_MB, resource, leftRam, resourceBuilder);
-        }
-        break;
-      case PORTS:
-        if (!selectedPorts.isEmpty()) {
-          Set<Integer> allocatedPorts = allocatePortResource(resource, selectedPorts, resourceBuilder);
-          leftPorts.removeAll(allocatedPorts);
-          LOG.info("----allocated port:" + allocatedPorts);
-        }
-        break;
-      default:
-        break;
-      }
-    }
+	public List<Resource> toResourceList(Set<Integer> selectedPorts) {
+		ResourceContext context = ResourceContextHolder.getResourceContext();
+		Preconditions.checkNotNull(context);
+		List<TrackableResource> offeredResources = context.getTrackableResources();
+		ImmutableList.Builder<Resource> resourceBuilder = ImmutableList.<Resource> builder();
+		double leftNumCpus = numCpus;
+		double leftDisk = disk.as(Data.MB);
+		double leftRam = ram.as(Data.MB);
+		Set<Integer> leftPorts = Sets.newHashSet(selectedPorts);
 
-    return resourceBuilder.build();
-  }
+		for (TrackableResource resource : offeredResources) {
+			switch (resource.getResource().getName()) {
+			case CPUS:
+				if (leftNumCpus > 0) {
+					leftNumCpus -= allocateSclarResource(CPUS, resource, leftNumCpus, resourceBuilder);
+				}
+				break;
+			case DISK_MB:
+				if (leftDisk > 0) {
+					leftDisk -= allocateSclarResource(DISK_MB, resource, leftDisk, resourceBuilder);
+				}
+				break;
+			case RAM_MB:
+				if (leftRam > 0) {
+					leftRam -= allocateSclarResource(RAM_MB, resource, leftRam, resourceBuilder);
+				}
+				break;
+			case PORTS:
+				if (!selectedPorts.isEmpty()) {
+					Set<Integer> allocatedPorts = allocatePortResource(resource, selectedPorts,
+					    resourceBuilder);
+					leftPorts.removeAll(allocatedPorts);
+					LOG.info("----allocated port:" + allocatedPorts);
+				}
+				break;
+			default:
+				break;
+			}
+		}
+
+		return resourceBuilder.build();
+	}
   
   /**
    * 
@@ -596,24 +587,25 @@ public class Resources {
     return allocatedPorts;
   }
   
-  private static Set<Integer> doAllocatePorts(int numPorts) {
-    Set<Integer> ports = Sets.newHashSet();
-    int i = numPorts;
-    List<TrackableResource> trackableResources = ResourceContextHolder.getResourceContext().getTrackableResources();
-    while(i > 0) {
-      for(TrackableResource resource:trackableResources) {
-        if(PORTS.equals(resource.getResource().getName())) {
-          Optional<Long> port = resource.allocateFromRange();
-          if(port.isPresent()) {
-            ports.add(port.get().intValue());
-            break;
-          }
-        }
-      }
-      i--;
-    }
-    return ports;
-  }
+	private static Set<Integer> doAllocatePorts(int numPorts) {
+		Set<Integer> ports = Sets.newHashSet();
+		int i = numPorts;
+		List<TrackableResource> trackableResources = ResourceContextHolder.getResourceContext()
+		    .getTrackableResources();
+		while (i > 0) {
+			for (TrackableResource resource : trackableResources) {
+				if (PORTS.equals(resource.getResource().getName())) {
+					Optional<Long> port = resource.allocateFromRange();
+					if (port.isPresent()) {
+						ports.add(port.get().intValue());
+						break;
+					}
+				}
+			}
+			i--;
+		}
+		return ports;
+	}
   
 //  private static List<Integer> getOfferedPorts(Offer offer) {
 //    Iterable<Resource> portResources = Iterables.filter(offer.getResourcesList(), withName(Resources.PORTS)); 

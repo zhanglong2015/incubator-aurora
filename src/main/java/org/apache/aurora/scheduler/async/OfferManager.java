@@ -13,12 +13,6 @@
  */
 package org.apache.aurora.scheduler.async;
 
-import static java.util.Objects.requireNonNull;
-import static org.apache.aurora.gen.MaintenanceMode.DRAINED;
-import static org.apache.aurora.gen.MaintenanceMode.DRAINING;
-import static org.apache.aurora.gen.MaintenanceMode.NONE;
-import static org.apache.aurora.gen.MaintenanceMode.SCHEDULED;
-
 import java.util.Comparator;
 import java.util.Map;
 import java.util.Set;
@@ -57,6 +51,13 @@ import org.apache.aurora.scheduler.state.TaskAssigner.Assignment;
 import org.apache.aurora.scheduler.storage.entities.IHostAttributes;
 import org.apache.mesos.Protos.OfferID;
 import org.apache.mesos.Protos.SlaveID;
+
+import static java.util.Objects.requireNonNull;
+
+import static org.apache.aurora.gen.MaintenanceMode.DRAINED;
+import static org.apache.aurora.gen.MaintenanceMode.DRAINING;
+import static org.apache.aurora.gen.MaintenanceMode.NONE;
+import static org.apache.aurora.gen.MaintenanceMode.SCHEDULED;
 
 /**
  * Tracks the Offers currently known by the scheduler.
@@ -333,22 +334,22 @@ public interface OfferManager extends EventSubscriber {
     @Override
     public boolean launchFirst(Function<HostOffer, Assignment> acceptor, GroupKey groupKey)
         throws LaunchException {
-    	
+      
       // It's important that this method is not called concurrently - doing so would open up the
       // possibility of a race between the same offers being accepted by different threads.
-			try {
-				for (HostOffer offer : hostOffers.getWeaklyConsistentOffers()) {
-					ResourceContextHolder.setResourceContext(new ResourceContext(offer.getOffer()));
-					if (!hostOffers.isStaticallyBanned(offer, groupKey)
-					    && acceptOffer(offer, acceptor, groupKey)) {
-						return true;
-					}
-				}
+      try {
+        for (HostOffer offer : hostOffers.getWeaklyConsistentOffers()) {
+          ResourceContextHolder.setResourceContext(new ResourceContext(offer.getOffer()));
+          if (!hostOffers.isStaticallyBanned(offer, groupKey)
+              && acceptOffer(offer, acceptor, groupKey)) {
+            return true;
+          }
+        }
 
-				return false;
-			} finally {
-    		ResourceContextHolder.clear();
-    	}
+        return false;
+      } finally {
+        ResourceContextHolder.clear();
+      }
     }
 
     @Timed("offer_queue_accept_offer")
