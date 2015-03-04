@@ -27,111 +27,100 @@ import org.apache.mesos.Protos.Resource;
 import org.apache.mesos.Protos.Value.Range;
 
 public class TrackableResource {
-	private Resource resource;
-	private double usedScalarResource = 0;
-	private Set<String> usedSetResource = Sets.newHashSet();
-	private Set<Long> usedRangeResource = Sets.newHashSet();
+  private Resource resource;
+  private double usedScalarResource = 0;
+  private Set<String> usedSetResource = Sets.newHashSet();
+  private Set<Long> usedRangeResource = Sets.newHashSet();
 
-	public TrackableResource(Resource resource) {
-		this.resource = resource;
-	}
+  public TrackableResource(Resource resource) {
+    this.resource = resource;
+  }
 
-	public Resource getResource() {
-		return resource;
-	}
+  public Resource getResource() {
+    return resource;
+  }
 
-	public void setResource(Resource resource) {
-		this.resource = resource;
-	}
+  public void setResource(Resource resource) {
+    this.resource = resource;
+  }
 
-//	public boolean allocatable() {
-//		if (resource.getType().equals(Type.SCALAR)) {
-//			return resource.getScalar().getValue() > usedScalarResource;
-//		} else if (resource.getType().equals(Type.RANGES)) {
-//			return false;
-//		} else if (resource.getType().equals(Type.SET)) {
-//			return resource.getSet().getItemList().size() > usedSetResource.size();
-//		}
-//		return false;
-//	}
+  public double getAvailableScalarResources() {
+    return resource.getScalar().getValue() - usedScalarResource;
+  }
 
-	public double getAvailableScalarResources() {
-		return resource.getScalar().getValue() - usedScalarResource;
-	}
+  public Set<Long> getAvailableRangeResources() {
+    Set<Long> allocatedRangeSet = Sets.newHashSet(Iterables.concat(Iterables.transform(resource
+        .getRanges().getRangeList(), RANGE_TO_MEMBERS)));
+    Set<Long> retval = Sets.newHashSet();
+    return Sets.symmetricDifference(allocatedRangeSet, usedRangeResource).copyInto(retval);
+  }
 
-	public Set<Long> getAvailableRangeResources() {
-		Set<Long> allocatedRangeSet = Sets.newHashSet(Iterables.concat(Iterables.transform(resource
-		    .getRanges().getRangeList(), RANGE_TO_MEMBERS)));
-		Set<Long> retval = Sets.newHashSet();
-		return Sets.symmetricDifference(allocatedRangeSet, usedRangeResource).copyInto(retval);
-	}
+  public Set<String> getAvailableSetResources() {
+    Set<String> allocatedSet = Sets.newHashSet(resource.getSet().getItemList());
+    return Sets.symmetricDifference(allocatedSet, usedSetResource);
+  }
 
-	public Set<String> getAvailableSetResources() {
-		Set<String> allocatedSet = Sets.newHashSet(resource.getSet().getItemList());
-		return Sets.symmetricDifference(allocatedSet, usedSetResource);
-	}
+  // public void allocateFromScalar(double allocated) {
+  // this.usedScalarResource += allocated;
+  // }
 
-	// public void allocateFromScalar(double allocated) {
-	// this.usedScalarResource += allocated;
-	// }
+  /**
+   * allocate a resource from range
+   * 
+   * @param allocated
+   * @return return allocated resource, if resource available, return Optional.absent()
+   */
+  public Optional<Long> allocateFromRange() {
+    Set<Long> availableResources = getAvailableRangeResources();
+    if (availableResources.isEmpty()) {
+      return Optional.absent();
+    }
+    Iterator<Long> it = Iterables.consumingIterable(availableResources).iterator();
+    Long allocated = it.next();
+    this.usedRangeResource.add(allocated);
+    return Optional.of(allocated);
+  }
 
-	/**
-	 * allocate a resource from range
-	 * @param allocated
-	 * @return return allocated resource, if resource available, return Optional.absent()
-	 */
-	public Optional<Long> allocateFromRange() {
-		Set<Long> availableResources = getAvailableRangeResources();
-		if(availableResources.isEmpty()) {
-			return Optional.absent();
-		}
-		Iterator<Long> it = Iterables.consumingIterable(availableResources).iterator();
-		Long allocated = it.next();
-		this.usedRangeResource.add(allocated);
-		return Optional.of(allocated);
-	}
+  /**
+   * allocate a resource from set
+   * 
+   * @param allocated
+   * @return return allocated resource, if resource available, return Optional.absent()
+   */
+  public Optional<String> allocateFromSet() {
+    Set<String> availableResources = getAvailableSetResources();
+    if (availableResources.isEmpty()) {
+      return Optional.absent();
+    }
+    Iterator<String> it = Iterables.consumingIterable(availableResources).iterator();
+    String allocated = it.next();
+    this.usedSetResource.add(allocated);
+    return Optional.of(allocated);
+  }
 
-	/**
-	 * allocate a resource from set
-	 * @param allocated
-	 * @return return allocated resource, if resource available, return Optional.absent()
-	 */
-	public Optional<String> allocateFromSet() {
-		Set<String> availableResources = getAvailableSetResources();
-		if(availableResources.isEmpty()) {
-			return Optional.absent();
-		}
-		Iterator<String> it = Iterables.consumingIterable(availableResources).iterator();
-		String allocated = it.next();
-		this.usedSetResource.add(allocated);
-		return Optional.of(allocated);
-	}
+  /**
+   * 
+   * @param required
+   * @return the resource actually allocated
+   */
+  public double allocateFromScalar(double required) {
+    double available = getAvailableScalarResources();
+    double allocated = available > required ? required : available;
+    usedScalarResource += allocated;
+    return allocated;
+  }
 
-	/**
-	 * 
-	 * @param required
-	 * @return the resource actually allocated
-	 */
-	public double allocateFromScalar(double required) {
-		double available = getAvailableScalarResources();
-		double allocated = available > required ? required : available;
-		usedScalarResource += allocated;
-		return allocated;
-	}
+  private static final Function<Range, Set<Long>> RANGE_TO_MEMBERS = new Function<Range, Set<Long>>() {
+    @Override
+    public Set<Long> apply(Range range) {
+      return ContiguousSet.create(
+          com.google.common.collect.Range.closed(range.getBegin(), range.getEnd()),
+          DiscreteDomain.longs());
+    }
+  };
 
-
-	private static final Function<Range, Set<Long>> RANGE_TO_MEMBERS = new Function<Range, Set<Long>>() {
-		@Override
-		public Set<Long> apply(Range range) {
-			return ContiguousSet.create(
-			    com.google.common.collect.Range.closed(range.getBegin(), range.getEnd()),
-			    DiscreteDomain.longs());
-		}
-	};
-
-	public String getRole() {
-		return resource.getRole();
-	}
-
+  public String getRole() {
+    return resource.getRole();
+  }
 
 }
