@@ -65,7 +65,7 @@ public class TrackableResource {
   // }
 
   /**
-   * allocate a resource from range
+   * allocate a resource from range.
    * 
    * @param allocated
    * @return return allocated resource, if resource available, return Optional.absent()
@@ -82,8 +82,8 @@ public class TrackableResource {
   }
 
   /**
-   * allocate a resource from set
-   * 
+   * allocate a resource from set.
+   *
    * @param allocated
    * @return return allocated resource, if resource available, return Optional.absent()
    */

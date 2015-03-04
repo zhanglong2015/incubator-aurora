@@ -245,53 +245,61 @@ class SchedulerThriftInterface implements AuroraAdmin.Iface {
   public Response createJob(
       JobConfiguration mutableJob,
       @Nullable final Lock mutableLock,
-	    SessionKey session) {
+      SessionKey session) {
 
-		requireNonNull(session);
+    requireNonNull(session);
 
-		final SanitizedConfiguration sanitized;
-		try {
-			sessionValidator.checkAuthenticated(session, ImmutableSet.of(mutableJob.getKey().getRole()));
-			sanitized = SanitizedConfiguration.fromUnsanitized(IJobConfiguration.build(mutableJob));
-		} catch (AuthFailedException e) {
-			return error(AUTH_FAILED, e);
-		} catch (TaskDescriptionException e) {
-			return error(INVALID_REQUEST, e);
-		}
+    final SanitizedConfiguration sanitized;
+    try {
+      sessionValidator.checkAuthenticated(
+          session,
+          ImmutableSet.of(mutableJob.getKey().getRole()));
+      sanitized = SanitizedConfiguration.fromUnsanitized(IJobConfiguration.build(mutableJob));
+    } catch (AuthFailedException e) {
+      return error(AUTH_FAILED, e);
+    } catch (TaskDescriptionException e) {
+      return error(INVALID_REQUEST, e);
+    }
 
-		if (sanitized.isCron()) {
-			return invalidRequest(NO_CRON);
-		}
+    if (sanitized.isCron()) {
+      return invalidRequest(NO_CRON);
+    }
 
-		return storage.write(new MutateWork.Quiet<Response>() {
-			@Override
-			public Response apply(MutableStoreProvider storeProvider) {
-				final IJobConfiguration job = sanitized.getJobConfig();
+    return storage.write(new MutateWork.Quiet<Response>() {
+      @Override
+      public Response apply(MutableStoreProvider storeProvider) {
+        final IJobConfiguration job = sanitized.getJobConfig();
 
-				try {
-					lockManager.validateIfLocked(ILockKey.build(LockKey.job(job.getKey().newBuilder())),
-					    Optional.fromNullable(mutableLock).transform(ILock.FROM_BUILDER));
+        try {
+          lockManager.validateIfLocked(
+              ILockKey.build(LockKey.job(job.getKey().newBuilder())),
+              Optional.fromNullable(mutableLock).transform(ILock.FROM_BUILDER));
 
-					checkJobExists(storeProvider, job.getKey());
+          checkJobExists(storeProvider, job.getKey());
 
-					ITaskConfig template = sanitized.getJobConfig().getTaskConfig();
-					int count = sanitized.getJobConfig().getInstanceCount();
+          ITaskConfig template = sanitized.getJobConfig().getTaskConfig();
+          int count = sanitized.getJobConfig().getInstanceCount();
 
-					validateTaskLimits(template, count,
-					    quotaManager.checkInstanceAddition(template, count, storeProvider));
+          validateTaskLimits(
+              template,
+              count,
+              quotaManager.checkInstanceAddition(template, count, storeProvider));
 
-					LOG.info("Launching " + count + " tasks.");
-					stateManager.insertPendingTasks(storeProvider, template, sanitized.getInstanceIds());
+          LOG.info("Launching " + count + " tasks.");
+          stateManager.insertPendingTasks(
+              storeProvider,
+              template,
+              sanitized.getInstanceIds());
 
-					return ok();
-				} catch (LockException e) {
-					return error(LOCK_ERROR, e);
-				} catch (JobExistsException | TaskValidationException e) {
-					return error(INVALID_REQUEST, e);
-				}
-			}
-		});
-	}
+          return ok();
+        } catch (LockException e) {
+          return error(LOCK_ERROR, e);
+        } catch (JobExistsException | TaskValidationException e) {
+          return error(INVALID_REQUEST, e);
+        }
+      }
+    });
+  }
 
   private static class JobExistsException extends Exception {
     public JobExistsException(String message) {
@@ -345,7 +353,7 @@ class SchedulerThriftInterface implements AuroraAdmin.Iface {
           validateTaskLimits(
               template,
               count,
-              quotaManager.checkInstanceAddition(template, count, storeProvider));
+              quotaManager.checkCronUpdate(sanitized.getJobConfig(), storeProvider));
 
           // TODO(mchucarroll): Merge CronJobManager.createJob/updateJob
           if (updateOnly || getCronJob(storeProvider, jobKey).isPresent()) {
@@ -1208,6 +1216,7 @@ class SchedulerThriftInterface implements AuroraAdmin.Iface {
                 .setKey(new JobUpdateKey(job.newBuilder(), updateId))
                 .setJobKey(job.newBuilder())
                 .setUpdateId(updateId)
+                .setKey(new JobUpdateKey(job.newBuilder(), updateId))
                 .setUser(context.getIdentity()))
             .setInstructions(instructions));
         try {
@@ -1217,7 +1226,8 @@ class SchedulerThriftInterface implements AuroraAdmin.Iface {
               quotaManager.checkJobUpdate(update, storeProvider));
 
           jobUpdateController.start(update, context.getIdentity());
-          return ok(Result.startJobUpdateResult(new StartJobUpdateResult(updateId)));
+          return ok(Result.startJobUpdateResult(
+              new StartJobUpdateResult(update.getSummary().getKey().newBuilder())));
         } catch (UpdateStateException | TaskValidationException e) {
           return error(INVALID_REQUEST, e);
         }
@@ -1319,8 +1329,8 @@ class SchedulerThriftInterface implements AuroraAdmin.Iface {
   }
 
   @Override
-  public Response getJobUpdateDetails(String updateId) throws TException {
-    return readOnlyScheduler.getJobUpdateDetails(updateId);
+  public Response getJobUpdateDetails(JobUpdateKey key) throws TException {
+    return readOnlyScheduler.getJobUpdateDetails(key);
   }
 
   private Optional<SessionContext> isUpdateCoordinator(SessionKey session) {
