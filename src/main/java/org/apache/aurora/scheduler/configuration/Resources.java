@@ -133,7 +133,8 @@ public class Resources {
 		double leftNumCpus = numCpus;
 		double leftDisk = disk.as(Data.MB);
 		double leftRam = ram.as(Data.MB);
-
+		Set<Integer> leftPorts = Sets.newHashSet(selectedPorts);
+		
 		for (TrackableResource resource : offeredResources) {
 			switch (resource.getResource().getName()) {
 			case CPUS:
@@ -153,7 +154,9 @@ public class Resources {
 				break;
 			case PORTS:
 				if (!selectedPorts.isEmpty()) {
-					addPortResource(resource, selectedPorts, resourceBuilder);
+					Set<Integer> allocatedPorts = allocatePortResource(resource, selectedPorts, resourceBuilder);
+					leftPorts.removeAll(allocatedPorts);
+					LOG.info("----allocated port:" + allocatedPorts);
 				}
 				break;
 			default:
@@ -190,8 +193,9 @@ public class Resources {
 	 * @param resource
 	 * @param selectedPorts
 	 */
-	private void addPortResource(TrackableResource resource, Set<Integer> selectedPorts,
+	private Set<Integer> allocatePortResource(TrackableResource resource, Set<Integer> selectedPorts,
 	    ImmutableList.Builder<Resource> resourceBuilder) {
+		Set<Integer> allocatedPorts = Sets.newHashSet();
 		Ranges portRange = resource.getResource().getRanges();
 		PeekingIterator<Integer> iterator = Iterators.peekingIterator(Sets.newTreeSet(selectedPorts)
 		    .iterator());
@@ -205,8 +209,10 @@ public class Resources {
 			if (currentRange == null) {// port is not in this resource
 				continue;
 			}
+			allocatedPorts.add(start);
 			while (iterator.hasNext() && iterator.peek() == end + 1 && inRange(end, currentRange)) {
 				end++;
+				allocatedPorts.add(end);
 				iterator.next();
 			}
 			// builder.add(com.google.common.collect.Range.closed(start, end));
@@ -221,6 +227,7 @@ public class Resources {
 	     .setRanges(builder.build())
 	     .build());
 		}
+		return allocatedPorts;
 	}
 	
 	private Range getRangeBelongTo(Integer value, final Ranges ranges) {
