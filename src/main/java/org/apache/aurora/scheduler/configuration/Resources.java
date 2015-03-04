@@ -59,7 +59,7 @@ import static java.util.Objects.requireNonNull;
  * TODO(wfarner): Collapse this in with ResourceAggregates AURORA-105.
  */
 public class Resources {
-	private static final Logger LOG = Logger.getLogger(Resources.class.getName());
+  private static final Logger LOG = Logger.getLogger(Resources.class.getName());
   public static final String CPUS = "cpus";
   public static final String RAM_MB = "mem";
   public static final String DISK_MB = "disk";
@@ -125,47 +125,47 @@ public class Resources {
    * @param selectedPorts The ports selected, to be applied as concrete task ranges.
    * @return Mesos resources.
    */
-	public List<Resource> toResourceList(Set<Integer> selectedPorts) {
-		ResourceContext context = ResourceContextHolder.getResourceContext();
-		Preconditions.checkNotNull(context);
-		List<TrackableResource> offeredResources = context.getTrackableResources();
-		ImmutableList.Builder<Resource> resourceBuilder = ImmutableList.<Resource> builder();
-		double leftNumCpus = numCpus;
-		double leftDisk = disk.as(Data.MB);
-		double leftRam = ram.as(Data.MB);
-		Set<Integer> leftPorts = Sets.newHashSet(selectedPorts);
-		
-		for (TrackableResource resource : offeredResources) {
-			switch (resource.getResource().getName()) {
-			case CPUS:
-				if (leftNumCpus > 0) {
-					leftNumCpus -= allocateSclarResource(CPUS, resource, leftNumCpus, resourceBuilder);
-				}
-				break;
-			case DISK_MB:
-				if (leftDisk > 0) {
-					leftDisk -= allocateSclarResource(DISK_MB, resource, leftDisk, resourceBuilder);
-				}
-				break;
-			case RAM_MB:
-				if (leftRam > 0) {
-					leftRam -= allocateSclarResource(RAM_MB, resource, leftRam, resourceBuilder);
-				}
-				break;
-			case PORTS:
-				if (!selectedPorts.isEmpty()) {
-					Set<Integer> allocatedPorts = allocatePortResource(resource, selectedPorts, resourceBuilder);
-					leftPorts.removeAll(allocatedPorts);
-					LOG.info("----allocated port:" + allocatedPorts);
-				}
-				break;
-			default:
-				break;
-			}
-		}
+  public List<Resource> toResourceList(Set<Integer> selectedPorts) {
+    ResourceContext context = ResourceContextHolder.getResourceContext();
+    Preconditions.checkNotNull(context);
+    List<TrackableResource> offeredResources = context.getTrackableResources();
+    ImmutableList.Builder<Resource> resourceBuilder = ImmutableList.<Resource> builder();
+    double leftNumCpus = numCpus;
+    double leftDisk = disk.as(Data.MB);
+    double leftRam = ram.as(Data.MB);
+    Set<Integer> leftPorts = Sets.newHashSet(selectedPorts);
+    
+    for (TrackableResource resource : offeredResources) {
+      switch (resource.getResource().getName()) {
+      case CPUS:
+        if (leftNumCpus > 0) {
+          leftNumCpus -= allocateSclarResource(CPUS, resource, leftNumCpus, resourceBuilder);
+        }
+        break;
+      case DISK_MB:
+        if (leftDisk > 0) {
+          leftDisk -= allocateSclarResource(DISK_MB, resource, leftDisk, resourceBuilder);
+        }
+        break;
+      case RAM_MB:
+        if (leftRam > 0) {
+          leftRam -= allocateSclarResource(RAM_MB, resource, leftRam, resourceBuilder);
+        }
+        break;
+      case PORTS:
+        if (!selectedPorts.isEmpty()) {
+          Set<Integer> allocatedPorts = allocatePortResource(resource, selectedPorts, resourceBuilder);
+          leftPorts.removeAll(allocatedPorts);
+          LOG.info("----allocated port:" + allocatedPorts);
+        }
+        break;
+      default:
+        break;
+      }
+    }
 
-		return resourceBuilder.build();
-	}
+    return resourceBuilder.build();
+  }
   
   /**
    * 
@@ -175,79 +175,79 @@ public class Resources {
    * @param resourceBuilder
    * @return actually allocated resource
    */
-	private double allocateSclarResource(String key, TrackableResource resource, double left,
-	    ImmutableList.Builder<Resource> resourceBuilder) {
-		double allocated = resource.allocateFromScalar(left);		
+  private double allocateSclarResource(String key, TrackableResource resource, double left,
+      ImmutableList.Builder<Resource> resourceBuilder) {
+    double allocated = resource.allocateFromScalar(left);    
 
-		LOG.info("resource=" + resource + ",name=" + resource.getResource().getName() + ",role="
-		    + resource.getRole() + ", value="
-		    + resource.getResource().getScalar().getValue());
-		if (allocated > 0) {
-			resourceBuilder.add(Resources.makeMesosResource(key, allocated, resource.getResource().getRole()));
-		} 
-		return allocated;
-	}
-	
-	/**
-	 * only range type is accept when filtering, so support range only,
-	 * @param resource
-	 * @param selectedPorts
-	 */
-	private Set<Integer> allocatePortResource(TrackableResource resource, Set<Integer> selectedPorts,
-	    ImmutableList.Builder<Resource> resourceBuilder) {
-		Set<Integer> allocatedPorts = Sets.newHashSet();
-		Ranges portRange = resource.getResource().getRanges();
-		PeekingIterator<Integer> iterator = Iterators.peekingIterator(Sets.newTreeSet(selectedPorts)
-		    .iterator());
-		Range currentRange = null;
-		Ranges.Builder builder = Ranges.newBuilder();
+    LOG.info("resource=" + resource + ",name=" + resource.getResource().getName() + ",role="
+        + resource.getRole() + ", value="
+        + resource.getResource().getScalar().getValue());
+    if (allocated > 0) {
+      resourceBuilder.add(Resources.makeMesosResource(key, allocated, resource.getResource().getRole()));
+    } 
+    return allocated;
+  }
+  
+  /**
+   * only range type is accept when filtering, so support range only,
+   * @param resource
+   * @param selectedPorts
+   */
+  private Set<Integer> allocatePortResource(TrackableResource resource, Set<Integer> selectedPorts,
+      ImmutableList.Builder<Resource> resourceBuilder) {
+    Set<Integer> allocatedPorts = Sets.newHashSet();
+    Ranges portRange = resource.getResource().getRanges();
+    PeekingIterator<Integer> iterator = Iterators.peekingIterator(Sets.newTreeSet(selectedPorts)
+        .iterator());
+    Range currentRange = null;
+    Ranges.Builder builder = Ranges.newBuilder();
 
-		while (iterator.hasNext()) {
-			int start = iterator.next();
-			int end = start;
-			currentRange = getRangeBelongTo(start, portRange);
-			if (currentRange == null) {// port is not in this resource
-				continue;
-			}
-			allocatedPorts.add(start);
-			while (iterator.hasNext() && iterator.peek() == end + 1 && inRange(end, currentRange)) {
-				end++;
-				allocatedPorts.add(end);
-				iterator.next();
-			}
-			// builder.add(com.google.common.collect.Range.closed(start, end));
-			builder.addRange(Range.newBuilder().setBegin(start).setEnd(end).build());
-			LOG.info("----add range: begin=" + start + ";end=" + end);
-		}
-		if(builder.getRangeCount() > 0) {
-			resourceBuilder.add(Resource.newBuilder()
-	     .setName(PORTS)
-	     .setType(Type.RANGES)
-	     .setRole(resource.getResource().getRole())
-	     .setRanges(builder.build())
-	     .build());
-		}
-		return allocatedPorts;
-	}
-	
-	private Range getRangeBelongTo(Integer value, final Ranges ranges) {
-		for (Range range : ranges.getRangeList()) {
-			long offerRangeBegin = range.getBegin();
-			long offerRangeEnd = range.getEnd();
-			if(value >= offerRangeBegin && value <= offerRangeEnd) {
-				return range;
-			}			
-		}
-		return null;
-	}
-	
-	private boolean inRange(Integer value, Range range) {
-		if(value >= range.getBegin() && value <= range.getEnd()) {
-			return true;
-		}
-		return false;
-	}
-	
+    while (iterator.hasNext()) {
+      int start = iterator.next();
+      int end = start;
+      currentRange = getRangeBelongTo(start, portRange);
+      if (currentRange == null) {// port is not in this resource
+        continue;
+      }
+      allocatedPorts.add(start);
+      while (iterator.hasNext() && iterator.peek() == end + 1 && inRange(end, currentRange)) {
+        end++;
+        allocatedPorts.add(end);
+        iterator.next();
+      }
+      // builder.add(com.google.common.collect.Range.closed(start, end));
+      builder.addRange(Range.newBuilder().setBegin(start).setEnd(end).build());
+      LOG.info("----add range: begin=" + start + ";end=" + end);
+    }
+    if(builder.getRangeCount() > 0) {
+      resourceBuilder.add(Resource.newBuilder()
+       .setName(PORTS)
+       .setType(Type.RANGES)
+       .setRole(resource.getResource().getRole())
+       .setRanges(builder.build())
+       .build());
+    }
+    return allocatedPorts;
+  }
+  
+  private Range getRangeBelongTo(Integer value, final Ranges ranges) {
+    for (Range range : ranges.getRangeList()) {
+      long offerRangeBegin = range.getBegin();
+      long offerRangeEnd = range.getEnd();
+      if(value >= offerRangeBegin && value <= offerRangeEnd) {
+        return range;
+      }      
+    }
+    return null;
+  }
+  
+  private boolean inRange(Integer value, Range range) {
+    if(value >= range.getBegin() && value <= range.getEnd()) {
+      return true;
+    }
+    return false;
+  }
+  
 
   /**
    * Convenience method for adapting to mesos resources without applying a port range.
@@ -333,26 +333,26 @@ public class Resources {
         getNumAvailablePorts(offer.getResourcesList()));
   }
 
-	/**
-	 * because in multiple role case, same resource type may has more than one resource in offer, such
-	 * as one resource with role "*", one resource with role "aurora". The offered resource should be
-	 * the sum value
-	 * 
-	 * @return
-	 */
-	private static double getSumScalarValue(Offer offer, String key) {
-		return getSumScalarValue(offer.getResourcesList(), key);
-	}
+  /**
+   * because in multiple role case, same resource type may has more than one resource in offer, such
+   * as one resource with role "*", one resource with role "aurora". The offered resource should be
+   * the sum value
+   * 
+   * @return
+   */
+  private static double getSumScalarValue(Offer offer, String key) {
+    return getSumScalarValue(offer.getResourcesList(), key);
+  }
 
-	private static double getSumScalarValue(List<Resource> resources, String key) {
-		double retval = 0;
-		for (Resource resource : resources) {
-			if (resource.getName().equals(key)) {
-				retval += resource.getScalar().getValue();
-			}
-		}
-		return retval;
-	}  
+  private static double getSumScalarValue(List<Resource> resources, String key) {
+    double retval = 0;
+    for (Resource resource : resources) {
+      if (resource.getName().equals(key)) {
+        retval += resource.getScalar().getValue();
+      }
+    }
+    return retval;
+  }  
 
   @VisibleForTesting
   public static final Resources NONE =
@@ -429,21 +429,21 @@ public class Resources {
     };
   }
 
-	private static Iterable<Range> getPortRanges(List<Resource> resources) {
-		List<Range> rangeList = Lists.newLinkedList();
-		for (Resource resource : resources) {
-			if (Resources.PORTS.equals(resource.getName())) {
-				rangeList.addAll(resource.getRanges().getRangeList());
-			}
-		}
-		return rangeList;
-		// Resource resource = getResource(resources, Resources.PORTS);
-		// if (resource == null) {
-		// return ImmutableList.of();
-		// }
-		//
-		// return resource.getRanges().getRangeList();
-	}
+  private static Iterable<Range> getPortRanges(List<Resource> resources) {
+    List<Range> rangeList = Lists.newLinkedList();
+    for (Resource resource : resources) {
+      if (Resources.PORTS.equals(resource.getName())) {
+        rangeList.addAll(resource.getRanges().getRangeList());
+      }
+    }
+    return rangeList;
+    // Resource resource = getResource(resources, Resources.PORTS);
+    // if (resource == null) {
+    // return ImmutableList.of();
+    // }
+    //
+    // return resource.getRanges().getRangeList();
+  }
 
   /**
    * Creates a scalar mesos resource.
@@ -597,37 +597,37 @@ public class Resources {
   }
   
   private static Set<Integer> doAllocatePorts(int numPorts) {
-  	Set<Integer> ports = Sets.newHashSet();
-  	int i = numPorts;
+    Set<Integer> ports = Sets.newHashSet();
+    int i = numPorts;
     List<TrackableResource> trackableResources = ResourceContextHolder.getResourceContext().getTrackableResources();
     while(i > 0) {
-    	for(TrackableResource resource:trackableResources) {
-    		if(PORTS.equals(resource.getResource().getName())) {
-	    		Optional<Long> port = resource.allocateFromRange();
-	    		if(port.isPresent()) {
-	    			ports.add(port.get().intValue());
-	    			break;
-	    		}
-    		}
-    	}
-    	i--;
+      for(TrackableResource resource:trackableResources) {
+        if(PORTS.equals(resource.getResource().getName())) {
+          Optional<Long> port = resource.allocateFromRange();
+          if(port.isPresent()) {
+            ports.add(port.get().intValue());
+            break;
+          }
+        }
+      }
+      i--;
     }
     return ports;
   }
   
 //  private static List<Integer> getOfferedPorts(Offer offer) {
-//  	Iterable<Resource> portResources = Iterables.filter(offer.getResourcesList(), withName(Resources.PORTS)); 
-//  	List<Resource> roleFirstPortResourceList = ROLE_FIRST.sortedCopy(portResources);
-//		List<Integer> offeredPorts = Lists.newLinkedList(Iterables.concat(Iterables.transform(
-//		    getPortRanges(roleFirstPortResourceList), RANGE_TO_MEMBERS)));
-//  	return offeredPorts;
+//    Iterable<Resource> portResources = Iterables.filter(offer.getResourcesList(), withName(Resources.PORTS)); 
+//    List<Resource> roleFirstPortResourceList = ROLE_FIRST.sortedCopy(portResources);
+//    List<Integer> offeredPorts = Lists.newLinkedList(Iterables.concat(Iterables.transform(
+//        getPortRanges(roleFirstPortResourceList), RANGE_TO_MEMBERS)));
+//    return offeredPorts;
 //  }
   
   private static final Ordering<Resource> ROLE_FIRST = Ordering.from(
       new Comparator<Resource>() {
         @Override
         public int compare(Resource r0, Resource r1) {
-        	 if (r0.getRole().equals(r1.getRole())) {
+           if (r0.getRole().equals(r1.getRole())) {
              return r0.getName().compareTo(r1.getName());
          }
          if ("*".equals(r0.getRole())) {
