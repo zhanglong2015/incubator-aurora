@@ -13,12 +13,6 @@
  */
 package org.apache.aurora.scheduler.configuration;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-
 import java.util.List;
 import java.util.Set;
 
@@ -48,6 +42,12 @@ import org.junit.Before;
 import org.junit.After;
 import org.junit.Test;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+
 public class ResourcesTest {
 
   private static final String NAME = "resource_name";
@@ -57,25 +57,31 @@ public class ResourcesTest {
   .setRamMb(1024)
   .setDiskMb(2048)
   .setRequestedPorts(ImmutableSet.of("http", "debug")));
-  
 
-	List<Resource> mockOfferResourceList() {
-		Resource portResource = Resource
-		    .newBuilder()
-		    .setType(Type.RANGES)
-		    .setName(Resources.PORTS)
-		    .setRole(Resources.MESOS_DEFAULT_ROLE)
-		    .setRanges(
-		        Ranges.newBuilder().addRange(Range.newBuilder().setBegin(80).setEnd(80).build())
-		            .addRange(Range.newBuilder().setBegin(443).setEnd(443).build())).build();
+  List<Resource> mockOfferResourceList() {
+    Resource portResource = Resource
+        .newBuilder()
+        .setType(Type.RANGES)
+        .setName(Resources.PORTS)
+        .setRole(Resources.MESOS_DEFAULT_ROLE)
+        .setRanges(
+            Ranges.newBuilder().addRange(Range.newBuilder().setBegin(80).setEnd(80).build())
+            .addRange(Range.newBuilder().setBegin(443).setEnd(443).build())).build();
 
-		ImmutableList.Builder<Resource> resourceBuilder = ImmutableList.<Resource> builder()
-		    .add(Resources.makeMesosResource(Resources.CPUS, TASK.getNumCpus(), Resources.MESOS_DEFAULT_ROLE))
-		    .add(Resources.makeMesosResource(Resources.DISK_MB, TASK.getDiskMb(), Resources.MESOS_DEFAULT_ROLE))
-		    .add(Resources.makeMesosResource(Resources.RAM_MB, TASK.getRamMb(), Resources.MESOS_DEFAULT_ROLE)).add(portResource);
-		return resourceBuilder.build();
-	}
-  
+    ImmutableList.Builder<Resource> resourceBuilder = ImmutableList
+        .<Resource> builder()
+        .add(
+            Resources.makeMesosResource(Resources.CPUS, TASK.getNumCpus(),
+                Resources.MESOS_DEFAULT_ROLE))
+                .add(
+                    Resources.makeMesosResource(Resources.DISK_MB, TASK.getDiskMb(),
+                        Resources.MESOS_DEFAULT_ROLE))
+                        .add(
+                            Resources.makeMesosResource(Resources.RAM_MB, TASK.getRamMb(),
+                                Resources.MESOS_DEFAULT_ROLE)).add(portResource);
+    return resourceBuilder.build();
+  }
+
   @Before
   public void setup() {
     Offer MESOS_OFFER = Offer.newBuilder()
@@ -85,14 +91,14 @@ public class ResourcesTest {
         .setId(OfferID.newBuilder().setValue("offer-id"))
         .addAllResources(mockOfferResourceList())
         .build();
-  	ResourceContextHolder.setResourceContext(new ResourceContext(MESOS_OFFER));
+    ResourceContextHolder.setResourceContext(new ResourceContext(MESOS_OFFER));
   }
-  
+
   @After
   public void tearDown() {
-  	ResourceContextHolder.clear();
+    ResourceContextHolder.clear();
   }
-  
+
   @Test
   public void testPortRangeExact() {
     Resource portsResource = createPortRange(Pair.of(1, 5));
@@ -135,7 +141,7 @@ public class ResourcesTest {
   @Test
   public void testGetNoPorts() {
     Resource portsResource = createPortRange(Pair.of(1, 5));
-    assertEquals(ImmutableSet.<Integer>of(), Resources.getPorts(createOffer(portsResource), 0));
+    assertEquals(ImmutableSet.<Integer> of(), Resources.getPorts(createOffer(portsResource), 0));
   }
 
   private static final Resources NEGATIVE_ONE =
@@ -173,8 +179,8 @@ public class ResourcesTest {
   }
 
   private Resource createPortRanges(Pair<Integer, Integer> rangeA, Pair<Integer, Integer> rangeB) {
-    return createPortRanges(
-        ImmutableSet.<Pair<Integer, Integer>>builder().add(rangeA).add(rangeB).build());
+    return createPortRanges(ImmutableSet.<Pair<Integer, Integer>> builder().add(rangeA).add(rangeB)
+        .build());
   }
 
   private Resource createPortRanges(Set<Pair<Integer, Integer>> ports) {
@@ -201,7 +207,7 @@ public class ResourcesTest {
 
   @Test
   public void testRangeResourceEmpty() {
-    expectRanges(ImmutableSet.<Pair<Long, Long>>of(), ImmutableSet.<Integer>of());
+    expectRanges(ImmutableSet.<Pair<Long, Long>> of(), ImmutableSet.<Integer> of());
   }
 
   @Test
@@ -257,11 +263,14 @@ public class ResourcesTest {
     Set<Integer> ports = ImmutableSet.of(80, 443);
     assertEquals(
         ImmutableSet.of(
-            Resources.makeMesosResource(Resources.CPUS, TASK.getNumCpus(), Resources.MESOS_DEFAULT_ROLE),
-            Resources.makeMesosResource(Resources.DISK_MB, TASK.getDiskMb(), Resources.MESOS_DEFAULT_ROLE),
-            Resources.makeMesosResource(Resources.RAM_MB, TASK.getRamMb(), Resources.MESOS_DEFAULT_ROLE),
-            Resources.makeMesosRangeResource(Resources.PORTS, ports, Resources.MESOS_DEFAULT_ROLE)),
-        ImmutableSet.copyOf(resources.toResourceList(ports)));
+            Resources.makeMesosResource(Resources.CPUS, TASK.getNumCpus(),
+                Resources.MESOS_DEFAULT_ROLE),
+                Resources.makeMesosResource(Resources.DISK_MB, TASK.getDiskMb(),
+                    Resources.MESOS_DEFAULT_ROLE),
+                    Resources.makeMesosResource(Resources.RAM_MB, TASK.getRamMb(),
+                        Resources.MESOS_DEFAULT_ROLE),
+                        Resources.makeMesosRangeResource(Resources.PORTS, ports, Resources.MESOS_DEFAULT_ROLE)),
+                        ImmutableSet.copyOf(resources.toResourceList(ports)));
   }
 
   @Test
@@ -284,14 +293,18 @@ public class ResourcesTest {
     Resources resources = Resources.from(TASK);
     assertEquals(
         ImmutableSet.of(
-            Resources.makeMesosResource(Resources.CPUS, TASK.getNumCpus(), Resources.MESOS_DEFAULT_ROLE),            
-            Resources.makeMesosResource(Resources.DISK_MB, TASK.getDiskMb(), Resources.MESOS_DEFAULT_ROLE),
-            Resources.makeMesosResource(Resources.RAM_MB, TASK.getRamMb(), Resources.MESOS_DEFAULT_ROLE)),
-        ImmutableSet.copyOf(resources.toResourceList(ImmutableSet.<Integer>of())));
+            Resources.makeMesosResource(Resources.CPUS, TASK.getNumCpus(),
+                Resources.MESOS_DEFAULT_ROLE),
+                Resources.makeMesosResource(Resources.DISK_MB, TASK.getDiskMb(),
+                    Resources.MESOS_DEFAULT_ROLE),
+                    Resources.makeMesosResource(Resources.RAM_MB, TASK.getRamMb(),
+                        Resources.MESOS_DEFAULT_ROLE)),
+                        ImmutableSet.copyOf(resources.toResourceList(ImmutableSet.<Integer> of())));
   }
 
   private void expectRanges(Set<Pair<Long, Long>> expected, Set<Integer> values) {
-    Resource resource = Resources.makeMesosRangeResource(NAME, values, Resources.MESOS_DEFAULT_ROLE);
+    Resource resource = Resources
+        .makeMesosRangeResource(NAME, values, Resources.MESOS_DEFAULT_ROLE);
     assertEquals(Type.RANGES, resource.getType());
     assertEquals(NAME, resource.getName());
 
