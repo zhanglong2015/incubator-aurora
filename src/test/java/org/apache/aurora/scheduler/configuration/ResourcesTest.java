@@ -53,10 +53,10 @@ public class ResourcesTest {
   private static final String NAME = "resource_name";
   private static final String HOST = "slave-host";
   private static final ITaskConfig TASK = ITaskConfig.build(new TaskConfig()
-  .setNumCpus(1.0)
-  .setRamMb(1024)
-  .setDiskMb(2048)
-  .setRequestedPorts(ImmutableSet.of("http", "debug")));
+      .setNumCpus(1.0)
+      .setRamMb(1024)
+      .setDiskMb(2048)
+      .setRequestedPorts(ImmutableSet.of("http", "debug")));
 
   List<Resource> mockOfferResourceList() {
     Resource portResource = Resource
@@ -66,32 +66,32 @@ public class ResourcesTest {
         .setRole(Resources.MESOS_DEFAULT_ROLE)
         .setRanges(
             Ranges.newBuilder().addRange(Range.newBuilder().setBegin(80).setEnd(80).build())
-            .addRange(Range.newBuilder().setBegin(443).setEnd(443).build())).build();
+                .addRange(Range.newBuilder().setBegin(443).setEnd(443).build())).build();
 
     ImmutableList.Builder<Resource> resourceBuilder = ImmutableList
         .<Resource> builder()
         .add(
             Resources.makeMesosResource(Resources.CPUS, TASK.getNumCpus(),
                 Resources.MESOS_DEFAULT_ROLE))
-                .add(
-                    Resources.makeMesosResource(Resources.DISK_MB, TASK.getDiskMb(),
-                        Resources.MESOS_DEFAULT_ROLE))
-                        .add(
-                            Resources.makeMesosResource(Resources.RAM_MB, TASK.getRamMb(),
-                                Resources.MESOS_DEFAULT_ROLE)).add(portResource);
+        .add(
+            Resources.makeMesosResource(Resources.DISK_MB, TASK.getDiskMb(),
+                Resources.MESOS_DEFAULT_ROLE))
+        .add(
+            Resources.makeMesosResource(Resources.RAM_MB, TASK.getRamMb(),
+                Resources.MESOS_DEFAULT_ROLE)).add(portResource);
     return resourceBuilder.build();
   }
 
   @Before
   public void setup() {
-    Offer MESOS_OFFER = Offer.newBuilder()
+    Offer mesosOffer = Offer.newBuilder()
         .setSlaveId(SlaveID.newBuilder().setValue("slave-id"))
         .setHostname(HOST)
         .setFrameworkId(FrameworkID.newBuilder().setValue("framework-id").build())
         .setId(OfferID.newBuilder().setValue("offer-id"))
         .addAllResources(mockOfferResourceList())
         .build();
-    ResourceContextHolder.setResourceContext(new ResourceContext(MESOS_OFFER));
+    ResourceContextHolder.setResourceContext(new ResourceContext(mesosOffer));
   }
 
   @After
@@ -265,12 +265,12 @@ public class ResourcesTest {
         ImmutableSet.of(
             Resources.makeMesosResource(Resources.CPUS, TASK.getNumCpus(),
                 Resources.MESOS_DEFAULT_ROLE),
-                Resources.makeMesosResource(Resources.DISK_MB, TASK.getDiskMb(),
-                    Resources.MESOS_DEFAULT_ROLE),
-                    Resources.makeMesosResource(Resources.RAM_MB, TASK.getRamMb(),
-                        Resources.MESOS_DEFAULT_ROLE),
-                        Resources.makeMesosRangeResource(Resources.PORTS, ports, Resources.MESOS_DEFAULT_ROLE)),
-                        ImmutableSet.copyOf(resources.toResourceList(ports)));
+            Resources.makeMesosResource(Resources.DISK_MB, TASK.getDiskMb(),
+                Resources.MESOS_DEFAULT_ROLE),
+            Resources.makeMesosResource(Resources.RAM_MB, TASK.getRamMb(),
+                Resources.MESOS_DEFAULT_ROLE),
+            Resources.makeMesosRangeResource(Resources.PORTS, ports, Resources.MESOS_DEFAULT_ROLE)),
+        ImmutableSet.copyOf(resources.toResourceList(ports)));
   }
 
   @Test
@@ -295,11 +295,11 @@ public class ResourcesTest {
         ImmutableSet.of(
             Resources.makeMesosResource(Resources.CPUS, TASK.getNumCpus(),
                 Resources.MESOS_DEFAULT_ROLE),
-                Resources.makeMesosResource(Resources.DISK_MB, TASK.getDiskMb(),
-                    Resources.MESOS_DEFAULT_ROLE),
-                    Resources.makeMesosResource(Resources.RAM_MB, TASK.getRamMb(),
-                        Resources.MESOS_DEFAULT_ROLE)),
-                        ImmutableSet.copyOf(resources.toResourceList(ImmutableSet.<Integer> of())));
+            Resources.makeMesosResource(Resources.DISK_MB, TASK.getDiskMb(),
+                Resources.MESOS_DEFAULT_ROLE),
+            Resources.makeMesosResource(Resources.RAM_MB, TASK.getRamMb(),
+                Resources.MESOS_DEFAULT_ROLE)),
+        ImmutableSet.copyOf(resources.toResourceList(ImmutableSet.<Integer> of())));
   }
 
   private void expectRanges(Set<Pair<Long, Long>> expected, Set<Integer> values) {

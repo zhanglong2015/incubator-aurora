@@ -28,11 +28,11 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 public class TrackableResourceTest {
-  private static final Resource scalarResource = Resource.newBuilder().setType(Type.SCALAR)
+  private static final Resource SCALAR_RESOURCE = Resource.newBuilder().setType(Type.SCALAR)
       .setName(Resources.CPUS).setScalar(Scalar.newBuilder().setValue(10))
       .setRole(Resources.MESOS_DEFAULT_ROLE).build();
 
-  private static final Resource singleRangeResource = Resource
+  private static final Resource SINGLE_RANGE_RESOURCE = Resource
       .newBuilder()
       .setType(Type.RANGES)
       .setName(Resources.PORTS)
@@ -41,7 +41,7 @@ public class TrackableResourceTest {
           Ranges.newBuilder().addRange(Range.newBuilder().setBegin(1000).setEnd(1000).build()))
           .build();
 
-  private static final Resource multipleRangeResource = Resource
+  private static final Resource MULTIPLE_RANGE_RESOURCE = Resource
       .newBuilder()
       .setType(Type.RANGES)
       .setName(Resources.PORTS)
@@ -52,7 +52,7 @@ public class TrackableResourceTest {
 
   @Test
   public void testAallocateFromScalar() {
-    TrackableResource trackableResource = new TrackableResource(scalarResource);
+    TrackableResource trackableResource = new TrackableResource(SCALAR_RESOURCE);
     double allocated = trackableResource.allocateFromScalar(4.9);
     assertEquals(4.9, allocated, 0);
 
@@ -62,7 +62,7 @@ public class TrackableResourceTest {
 
   @Test
   public void testAllocateFromRange() {
-    TrackableResource trackableResource = new TrackableResource(singleRangeResource);
+    TrackableResource trackableResource = new TrackableResource(SINGLE_RANGE_RESOURCE);
     Optional<Long> allocated = trackableResource.allocateFromRange();
     assertEquals(allocated.orNull().intValue(), 1000);
 
@@ -72,7 +72,7 @@ public class TrackableResourceTest {
 
   @Test
   public void testAllocateFromRangeWithMultipleRange() {
-    TrackableResource trackableResource = new TrackableResource(multipleRangeResource);
+    TrackableResource trackableResource = new TrackableResource(MULTIPLE_RANGE_RESOURCE);
     Optional<Long> allocated = trackableResource.allocateFromRange();
     assertTrue(allocated.isPresent());
 
