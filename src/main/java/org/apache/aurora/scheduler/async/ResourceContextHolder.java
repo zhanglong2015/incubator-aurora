@@ -13,7 +13,7 @@
  */
 package org.apache.aurora.scheduler.async;
 
-public class ResourceContextHolder {
+public final class ResourceContextHolder {
   private static final ThreadLocal<ResourceContext> CONTEXT =
       new ThreadLocal<ResourceContext>();
 
