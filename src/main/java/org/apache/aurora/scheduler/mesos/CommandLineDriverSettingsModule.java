@@ -42,129 +42,123 @@ import static org.apache.mesos.Protos.FrameworkInfo;
  */
 public class CommandLineDriverSettingsModule extends AbstractModule {
 
-	private static final Logger LOG =
-			Logger.getLogger(CommandLineDriverSettingsModule.class.getName());
+  private static final Logger LOG = Logger.getLogger(CommandLineDriverSettingsModule.class
+      .getName());
 
-	@NotNull
-	@CmdLine(name = "mesos_master_address",
-	help = "Address for the mesos master, can be a socket address or zookeeper path.")
-	private static final Arg<String> MESOS_MASTER_ADDRESS = Arg.create();
+  @NotNull
+  @CmdLine(name = "mesos_master_address", help = "Address for the mesos master, can be a socket address or zookeeper path.")
+  private static final Arg<String> MESOS_MASTER_ADDRESS = Arg.create();
 
-	@CmdLine(name = "mesos_role",
-			help = "role defined in mesos, aurora register framework with this role")
-	private static final Arg<String> MESOS_ROLE = Arg.create();
+  @CmdLine(name = "mesos_role", help = "role defined in mesos, aurora register framework with this role")
+  private static final Arg<String> MESOS_ROLE = Arg.create();
 
-	@VisibleForTesting
-	static final String PRINCIPAL_KEY = "aurora_authentication_principal";
-	@VisibleForTesting
-	static final String SECRET_KEY = "aurora_authentication_secret";
+  @VisibleForTesting
+  static final String PRINCIPAL_KEY = "aurora_authentication_principal";
+  @VisibleForTesting
+  static final String SECRET_KEY = "aurora_authentication_secret";
 
-	@CmdLine(name = "framework_authentication_file",
-			help = "Properties file which contains framework credentials to authenticate with Mesos"
-					+ "master. Must contain the properties '" + PRINCIPAL_KEY + "' and "
-					+ "'" + SECRET_KEY + "'.")
-	private static final Arg<File> FRAMEWORK_AUTHENTICATION_FILE = Arg.create();
+  @CmdLine(name = "framework_authentication_file", help = "Properties file which contains framework credentials to authenticate with Mesos"
+      + "master. Must contain the properties '"
+      + PRINCIPAL_KEY
+      + "' and "
+      + "'"
+      + SECRET_KEY
+      + "'.")
+  private static final Arg<File> FRAMEWORK_AUTHENTICATION_FILE = Arg.create();
 
-	@CmdLine(name = "framework_failover_timeout",
-			help = "Time after which a framework is considered deleted.  SHOULD BE VERY HIGH.")
-	private static final Arg<Amount<Long, Time>> FRAMEWORK_FAILOVER_TIMEOUT =
-	Arg.create(Amount.of(21L, Time.DAYS));
+  @CmdLine(name = "framework_failover_timeout", help = "Time after which a framework is considered deleted.  SHOULD BE VERY HIGH.")
+  private static final Arg<Amount<Long, Time>> FRAMEWORK_FAILOVER_TIMEOUT = Arg.create(Amount.of(
+      21L, Time.DAYS));
 
-	/**
-	 * Require Mesos slaves to have checkpointing enabled. Slaves with checkpointing enabled will
-	 * attempt to write checkpoints when required by a task's framework. These checkpoints allow
-	 * executors to be reattached rather than killed when a slave is restarted.
-	 *
-	 * This flag is dangerous! When enabled tasks will not launch on slaves without checkpointing
-	 * enabled.
-	 *
-	 * Behavior is as follows:
-	 * (Scheduler -require_slave_checkpoint=true,  Slave --checkpoint=true):
-	 *   Tasks will launch.        Checkpoints will be written.
-	 * (Scheduler -require_slave_checkpoint=true,   Slave --checkpoint=false):
-	 *   Tasks WILL NOT launch.
-	 * (Scheduler -require_slave_checkpoint=false,  Slave --checkpoint=true):
-	 *   Tasks will launch.        Checkpoints will not be written.
-	 * (Scheduler -require_slave_checkpoint=false,  Slave --checkpoint=false):
-	 *   Tasks will launch.        Checkpoints will not be written.
-	 *
-	 * TODO(ksweeney): Remove warning table after https://issues.apache.org/jira/browse/MESOS-444
-	 * is resolved.
-	 */
-	@CmdLine(name = "require_slave_checkpoint",
-			help = "DANGEROUS! Require Mesos slaves to have checkpointing enabled. When enabled a "
-					+ "slave restart should not kill executors, but the scheduler will not be able to "
-					+ "launch tasks on slaves without --checkpoint=true in their command lines. See "
-					+ "DriverFactory.java for more information.")
-	private static final Arg<Boolean> REQUIRE_SLAVE_CHECKPOINT = Arg.create(false);
+  /**
+   * Require Mesos slaves to have checkpointing enabled. Slaves with checkpointing enabled will
+   * attempt to write checkpoints when required by a task's framework. These checkpoints allow
+   * executors to be reattached rather than killed when a slave is restarted.
+   *
+   * This flag is dangerous! When enabled tasks will not launch on slaves without checkpointing
+   * enabled.
+   *
+   * Behavior is as follows: (Scheduler -require_slave_checkpoint=true, Slave --checkpoint=true):
+   * Tasks will launch. Checkpoints will be written. (Scheduler -require_slave_checkpoint=true,
+   * Slave --checkpoint=false): Tasks WILL NOT launch. (Scheduler -require_slave_checkpoint=false,
+   * Slave --checkpoint=true): Tasks will launch. Checkpoints will not be written. (Scheduler
+   * -require_slave_checkpoint=false, Slave --checkpoint=false): Tasks will launch. Checkpoints will
+   * not be written.
+   *
+   * TODO(ksweeney): Remove warning table after https://issues.apache.org/jira/browse/MESOS-444 is
+   * resolved.
+   */
+  @CmdLine(name = "require_slave_checkpoint", help = "DANGEROUS! Require Mesos slaves to have checkpointing enabled. When enabled a "
+      + "slave restart should not kill executors, but the scheduler will not be able to "
+      + "launch tasks on slaves without --checkpoint=true in their command lines. See "
+      + "DriverFactory.java for more information.")
+  private static final Arg<Boolean> REQUIRE_SLAVE_CHECKPOINT = Arg.create(false);
 
-	@CmdLine(name = "executor_user",
-			help = "User to start the executor. Defaults to \"root\". "
-					+ "Set this to an unprivileged user if the mesos master was started with "
-					+ "\"--no-root_submissions\". If set to anything other than \"root\", the executor "
-					+ "will ignore the \"role\" setting for jobs since it can't use setuid() anymore. "
-					+ "This means that all your jobs will run under the specified user and the user has "
-					+ "to exist on the mesos slaves.")
-	private static final Arg<String> EXECUTOR_USER = Arg.create("root");
+  @CmdLine(name = "executor_user", help = "User to start the executor. Defaults to \"root\". "
+      + "Set this to an unprivileged user if the mesos master was started with "
+      + "\"--no-root_submissions\". If set to anything other than \"root\", the executor "
+      + "will ignore the \"role\" setting for jobs since it can't use setuid() anymore. "
+      + "This means that all your jobs will run under the specified user and the user has "
+      + "to exist on the mesos slaves.")
+  private static final Arg<String> EXECUTOR_USER = Arg.create("root");
 
-	// TODO(wfarner): Figure out a way to change this without risk of fallout (MESOS-703).
-	private static final String TWITTER_FRAMEWORK_NAME = "TwitterScheduler";
+  // TODO(wfarner): Figure out a way to change this without risk of fallout (MESOS-703).
+  private static final String TWITTER_FRAMEWORK_NAME = "TwitterScheduler";
 
-	@Override
-	protected void configure() {
-		FrameworkInfo.Builder builder = FrameworkInfo.newBuilder().setUser(EXECUTOR_USER.get())
-				.setName(TWITTER_FRAMEWORK_NAME).setCheckpoint(REQUIRE_SLAVE_CHECKPOINT.get())
-				.setFailoverTimeout(FRAMEWORK_FAILOVER_TIMEOUT.get().as(Time.SECONDS));
-		/**
-		 * Mesos role should keep unset if no Mesos role specified in command line, should not use
-		 * default role "*" instead. for detail please refer to
-		 * https://issues.apache.org/jira/browse/MESOS-2309
-		 */
-		if (MESOS_ROLE.hasAppliedValue()) {
-			LOG.info("MESOS_ROLE=" + MESOS_ROLE.get());
-			builder.setRole(MESOS_ROLE.get());
-		}
-		FrameworkInfo frameworkInfo = builder.build();
-		DriverSettings settings = new DriverSettings(MESOS_MASTER_ADDRESS.get(), getCredentials(),
-				frameworkInfo);
-		bind(DriverSettings.class).toInstance(settings);
-	}
+  @Override
+  protected void configure() {
+    FrameworkInfo.Builder builder = FrameworkInfo.newBuilder().setUser(EXECUTOR_USER.get())
+        .setName(TWITTER_FRAMEWORK_NAME).setCheckpoint(REQUIRE_SLAVE_CHECKPOINT.get())
+        .setFailoverTimeout(FRAMEWORK_FAILOVER_TIMEOUT.get().as(Time.SECONDS));
+    /**
+     * Mesos role should keep unset if no Mesos role specified in command line, should not use
+     * default role "*" instead. for detail please refer to
+     * https://issues.apache.org/jira/browse/MESOS-2309
+     */
+    if (MESOS_ROLE.hasAppliedValue()) {
+      LOG.info("MESOS_ROLE=" + MESOS_ROLE.get());
+      builder.setRole(MESOS_ROLE.get());
+    }
+    FrameworkInfo frameworkInfo = builder.build();
+    DriverSettings settings = new DriverSettings(MESOS_MASTER_ADDRESS.get(), getCredentials(),
+        frameworkInfo);
+    bind(DriverSettings.class).toInstance(settings);
+  }
 
-	private static Optional<Protos.Credential> getCredentials() {
-		if (FRAMEWORK_AUTHENTICATION_FILE.hasAppliedValue()) {
-			Properties properties;
-			try {
-				properties = parseCredentials(new FileInputStream(FRAMEWORK_AUTHENTICATION_FILE.get()));
-			} catch (FileNotFoundException e) {
-				LOG.severe("Authentication File not Found");
-				throw Throwables.propagate(e);
-			}
+  private static Optional<Protos.Credential> getCredentials() {
+    if (FRAMEWORK_AUTHENTICATION_FILE.hasAppliedValue()) {
+      Properties properties;
+      try {
+        properties = parseCredentials(new FileInputStream(FRAMEWORK_AUTHENTICATION_FILE.get()));
+      } catch (FileNotFoundException e) {
+        LOG.severe("Authentication File not Found");
+        throw Throwables.propagate(e);
+      }
 
-			LOG.info(String.format("Connecting to master using authentication (principal: %s).",
-					properties.get(PRINCIPAL_KEY)));
+      LOG.info(String.format("Connecting to master using authentication (principal: %s).",
+          properties.get(PRINCIPAL_KEY)));
 
-			return Optional.of(Protos.Credential.newBuilder()
-					.setPrincipal(properties.getProperty(PRINCIPAL_KEY))
-					.setSecret(ByteString.copyFromUtf8(properties.getProperty(SECRET_KEY)))
-					.build());
-		} else {
-			return Optional.absent();
-		}
-	}
+      return Optional.of(Protos.Credential.newBuilder()
+          .setPrincipal(properties.getProperty(PRINCIPAL_KEY))
+          .setSecret(ByteString.copyFromUtf8(properties.getProperty(SECRET_KEY))).build());
+    } else {
+      return Optional.absent();
+    }
+  }
 
-	@VisibleForTesting
-	static Properties parseCredentials(InputStream credentialsStream) {
-		Properties properties = new Properties();
-		try {
-			properties.load(credentialsStream);
-		} catch (IOException e) {
-			LOG.severe("Unable to load authentication file");
-			throw Throwables.propagate(e);
-		}
-		Preconditions.checkState(properties.containsKey(PRINCIPAL_KEY),
-				"The framework authentication file is missing the key: %s", PRINCIPAL_KEY);
-		Preconditions.checkState(properties.containsKey(SECRET_KEY),
-				"The framework authentication file is missing the key: %s", SECRET_KEY);
-		return properties;
-	}
+  @VisibleForTesting
+  static Properties parseCredentials(InputStream credentialsStream) {
+    Properties properties = new Properties();
+    try {
+      properties.load(credentialsStream);
+    } catch (IOException e) {
+      LOG.severe("Unable to load authentication file");
+      throw Throwables.propagate(e);
+    }
+    Preconditions.checkState(properties.containsKey(PRINCIPAL_KEY),
+        "The framework authentication file is missing the key: %s", PRINCIPAL_KEY);
+    Preconditions.checkState(properties.containsKey(SECRET_KEY),
+        "The framework authentication file is missing the key: %s", SECRET_KEY);
+    return properties;
+  }
 }
