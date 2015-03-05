@@ -46,7 +46,8 @@ public class CommandLineDriverSettingsModule extends AbstractModule {
       .getName());
 
   @NotNull
-  @CmdLine(name = "mesos_master_address", help = "Address for the mesos master, can be a socket address or zookeeper path.")
+  @CmdLine(name = "mesos_master_address",
+  help = "Address for the mesos master, can be a socket address or zookeeper path.")
   private static final Arg<String> MESOS_MASTER_ADDRESS = Arg.create();
 
   @CmdLine(name = "mesos_role", help = "role defined in mesos, aurora register framework with this role")
@@ -57,16 +58,18 @@ public class CommandLineDriverSettingsModule extends AbstractModule {
   @VisibleForTesting
   static final String SECRET_KEY = "aurora_authentication_secret";
 
-  @CmdLine(name = "framework_authentication_file", help = "Properties file which contains framework credentials to authenticate with Mesos"
-      + "master. Must contain the properties '"
-      + PRINCIPAL_KEY
-      + "' and "
-      + "'"
-      + SECRET_KEY
-      + "'.")
+  @CmdLine(name = "framework_authentication_file",
+      help = "Properties file which contains framework credentials to authenticate with Mesos"
+          + "master. Must contain the properties '"
+          + PRINCIPAL_KEY
+          + "' and "
+          + "'"
+          + SECRET_KEY
+          + "'.")
   private static final Arg<File> FRAMEWORK_AUTHENTICATION_FILE = Arg.create();
 
-  @CmdLine(name = "framework_failover_timeout", help = "Time after which a framework is considered deleted.  SHOULD BE VERY HIGH.")
+  @CmdLine(name = "framework_failover_timeout",
+      help = "Time after which a framework is considered deleted.  SHOULD BE VERY HIGH.")
   private static final Arg<Amount<Long, Time>> FRAMEWORK_FAILOVER_TIMEOUT = Arg.create(Amount.of(
       21L, Time.DAYS));
 
@@ -88,18 +91,20 @@ public class CommandLineDriverSettingsModule extends AbstractModule {
    * TODO(ksweeney): Remove warning table after https://issues.apache.org/jira/browse/MESOS-444 is
    * resolved.
    */
-  @CmdLine(name = "require_slave_checkpoint", help = "DANGEROUS! Require Mesos slaves to have checkpointing enabled. When enabled a "
-      + "slave restart should not kill executors, but the scheduler will not be able to "
-      + "launch tasks on slaves without --checkpoint=true in their command lines. See "
-      + "DriverFactory.java for more information.")
+  @CmdLine(name = "require_slave_checkpoint",
+      help = "DANGEROUS! Require Mesos slaves to have checkpointing enabled. When enabled a "
+          + "slave restart should not kill executors, but the scheduler will not be able to "
+          + "launch tasks on slaves without --checkpoint=true in their command lines. See "
+          + "DriverFactory.java for more information.")
   private static final Arg<Boolean> REQUIRE_SLAVE_CHECKPOINT = Arg.create(false);
 
-  @CmdLine(name = "executor_user", help = "User to start the executor. Defaults to \"root\". "
-      + "Set this to an unprivileged user if the mesos master was started with "
-      + "\"--no-root_submissions\". If set to anything other than \"root\", the executor "
-      + "will ignore the \"role\" setting for jobs since it can't use setuid() anymore. "
-      + "This means that all your jobs will run under the specified user and the user has "
-      + "to exist on the mesos slaves.")
+  @CmdLine(name = "executor_user",
+      help = "User to start the executor. Defaults to \"root\". "
+          + "Set this to an unprivileged user if the mesos master was started with "
+          + "\"--no-root_submissions\". If set to anything other than \"root\", the executor "
+          + "will ignore the \"role\" setting for jobs since it can't use setuid() anymore. "
+          + "This means that all your jobs will run under the specified user and the user has "
+          + "to exist on the mesos slaves.")
   private static final Arg<String> EXECUTOR_USER = Arg.create("root");
 
   // TODO(wfarner): Figure out a way to change this without risk of fallout (MESOS-703).

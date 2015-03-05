@@ -66,7 +66,8 @@ public class Resources {
   public static final String PORTS = "ports";
   public static final String MESOS_DEFAULT_ROLE = "*";
 
-  private static final Function<Range, Set<Integer>> RANGE_TO_MEMBERS = new Function<Range, Set<Integer>>() {
+  private static final Function<Range, Set<Integer>> RANGE_TO_MEMBERS =
+      new Function<Range, Set<Integer>>() {
     @Override
     public Set<Integer> apply(Range range) {
       return ContiguousSet.create(
@@ -130,31 +131,31 @@ public class Resources {
 
     for (TrackableResource resource : offeredResources) {
       switch (resource.getResource().getName()) {
-      case CPUS:
-        if (leftNumCpus > 0) {
-          leftNumCpus -= allocateSclarResource(CPUS, resource, leftNumCpus, resourceBuilder);
-        }
-        break;
-      case DISK_MB:
-        if (leftDisk > 0) {
-          leftDisk -= allocateSclarResource(DISK_MB, resource, leftDisk, resourceBuilder);
-        }
-        break;
-      case RAM_MB:
-        if (leftRam > 0) {
-          leftRam -= allocateSclarResource(RAM_MB, resource, leftRam, resourceBuilder);
-        }
-        break;
-      case PORTS:
-        if (!selectedPorts.isEmpty()) {
-          Set<Integer> allocatedPorts = allocatePortResource(resource, selectedPorts,
-              resourceBuilder);
-          leftPorts.removeAll(allocatedPorts);
-          LOG.info("----allocated port:" + allocatedPorts);
-        }
-        break;
-      default:
-        break;
+        case CPUS:
+          if (leftNumCpus > 0) {
+            leftNumCpus -= allocateSclarResource(CPUS, resource, leftNumCpus, resourceBuilder);
+          }
+          break;
+        case DISK_MB:
+          if (leftDisk > 0) {
+            leftDisk -= allocateSclarResource(DISK_MB, resource, leftDisk, resourceBuilder);
+          }
+          break;
+        case RAM_MB:
+          if (leftRam > 0) {
+            leftRam -= allocateSclarResource(RAM_MB, resource, leftRam, resourceBuilder);
+          }
+          break;
+        case PORTS:
+          if (!selectedPorts.isEmpty()) {
+            Set<Integer> allocatedPorts = allocatePortResource(resource, selectedPorts,
+                resourceBuilder);
+            leftPorts.removeAll(allocatedPorts);
+            LOG.info("----allocated port:" + allocatedPorts);
+          }
+          break;
+        default:
+          break;
       }
     }
 
@@ -162,7 +163,7 @@ public class Resources {
   }
 
   /**
-   *
+   * allocate scalar resource
    * @param key
    * @param resource
    * @param left

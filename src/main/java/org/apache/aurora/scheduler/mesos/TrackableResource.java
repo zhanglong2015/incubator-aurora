@@ -110,7 +110,8 @@ public class TrackableResource {
     return allocated;
   }
 
-  private static final Function<Range, Set<Long>> RANGE_TO_MEMBERS = new Function<Range, Set<Long>>() {
+  private static final Function<Range, Set<Long>> RANGE_TO_MEMBERS =
+      new Function<Range, Set<Long>>() {
     @Override
     public Set<Long> apply(Range range) {
       return ContiguousSet.create(
