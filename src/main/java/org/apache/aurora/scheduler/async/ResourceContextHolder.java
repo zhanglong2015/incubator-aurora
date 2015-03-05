@@ -17,6 +17,10 @@ public class ResourceContextHolder {
   private static final ThreadLocal<ResourceContext> CONTEXT =
       new ThreadLocal<ResourceContext>();
 
+  private ResourceContextHolder() {
+
+  }
+
   public static void setResourceContext(ResourceContext context) {
     CONTEXT.set(context);
   }
