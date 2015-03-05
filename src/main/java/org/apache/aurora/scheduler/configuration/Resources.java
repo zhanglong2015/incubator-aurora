@@ -383,10 +383,6 @@ public class Resources {
     return offeredPorts;
   }
 
-  private static double getScalarValue(Offer offer, String key) {
-    return getScalarValue(offer.getResourcesList(), key);
-  }
-
   private static double getScalarValue(List<Resource> resources, String key) {
     Resource resource = getResource(resources, key);
     if (resource == null) {
@@ -580,7 +576,7 @@ public class Resources {
 
     Set<Integer> allocatedPorts = doAllocatePorts(numPorts);
     if (allocatedPorts.size() < numPorts) {
-      throw new InsufficientResourcesException(String.format("Could not get %d ports from %s",
+      throw new InsufficientResourcesException(String.format("Could not get %d ports",
           numPorts));
     }
     return allocatedPorts;
