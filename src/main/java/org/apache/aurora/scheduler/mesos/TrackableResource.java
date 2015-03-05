@@ -29,8 +29,8 @@ import org.apache.mesos.Protos.Value.Range;
 public class TrackableResource {
   private Resource resource;
   private double usedScalarResource = 0;
-  private Set<String> usedSetResource = Sets.newHashSet();
-  private Set<Long> usedRangeResource = Sets.newHashSet();
+  private final Set<String> usedSetResource = Sets.newHashSet();
+  private final Set<Long> usedRangeResource = Sets.newHashSet();
 
   public TrackableResource(Resource resource) {
     this.resource = resource;

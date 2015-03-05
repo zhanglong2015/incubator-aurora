@@ -602,29 +602,6 @@ public class Resources {
     return ports;
   }
 
-  // private static List<Integer> getOfferedPorts(Offer offer) {
-  // Iterable<Resource> portResources = Iterables.filter(offer.getResourcesList(),
-  // withName(Resources.PORTS));
-  // List<Resource> roleFirstPortResourceList = ROLE_FIRST.sortedCopy(portResources);
-  // List<Integer> offeredPorts = Lists.newLinkedList(Iterables.concat(Iterables.transform(
-  // getPortRanges(roleFirstPortResourceList), RANGE_TO_MEMBERS)));
-  // return offeredPorts;
-  // }
-
-  private static final Ordering<Resource> ROLE_FIRST = Ordering.from(new Comparator<Resource>() {
-    @Override
-    public int compare(Resource r0, Resource r1) {
-      if (r0.getRole().equals(r1.getRole())) {
-        return r0.getName().compareTo(r1.getName());
-      }
-      if ("*".equals(r0.getRole())) {
-        return 1;
-      } else {
-        return -1;
-      }
-    }
-  });
-
   /**
    * A Resources object is greater than another iff _all_ of its resource components are greater or
    * equal. A Resources object compares as equal if some but not all components are greater than or

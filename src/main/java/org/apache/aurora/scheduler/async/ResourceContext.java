@@ -24,15 +24,16 @@ import org.apache.mesos.Protos.Offer;
 import org.apache.mesos.Protos.Resource;
 
 public class ResourceContext {
-  private List<TrackableResource> trackableResource = new LinkedList<TrackableResource>();
+  private final List<TrackableResource> trackableResource;
   private static final String DEFAULT_MESOS_ROLE = "*";
 
   public ResourceContext(Offer offer) {
+    List<TrackableResource> tmp = new LinkedList<TrackableResource>();
     List<Resource> resources = offer.getResourcesList();
     for (Resource resource : resources) {
-      trackableResource.add(new TrackableResource(resource));
+      tmp.add(new TrackableResource(resource));
     }
-    trackableResource = ROLE_FIRST.sortedCopy(trackableResource);
+    trackableResource = ROLE_FIRST.sortedCopy(tmp);
   }
 
   public List<TrackableResource> getTrackableResources() {
