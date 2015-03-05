@@ -334,7 +334,6 @@ public interface OfferManager extends EventSubscriber {
     @Override
     public boolean launchFirst(Function<HostOffer, Assignment> acceptor, GroupKey groupKey)
         throws LaunchException {
-      
       // It's important that this method is not called concurrently - doing so would open up the
       // possibility of a race between the same offers being accepted by different threads.
       try {
