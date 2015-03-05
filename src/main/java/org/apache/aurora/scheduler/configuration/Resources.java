@@ -163,7 +163,7 @@ public class Resources {
   }
 
   /**
-   * allocate scalar resource
+   * allocate scalar resource.
    * @param key
    * @param resource
    * @param left
@@ -184,7 +184,7 @@ public class Resources {
   }
 
   /**
-   * only range type is accept when filtering, so support range only,
+   * only range type is accept when filtering, so support range only.
    *
    * @param resource
    * @param selectedPorts
@@ -202,7 +202,7 @@ public class Resources {
       int start = iterator.next();
       int end = start;
       currentRange = getRangeBelongTo(start, portRange);
-      if (currentRange == null) {// port is not in this resource
+      if (currentRange == null) { // port is not in this resource
         continue;
       }
       allocatedPorts.add(start);
@@ -455,7 +455,8 @@ public class Resources {
         .setScalar(Scalar.newBuilder().setValue(value)).setRole(role).build();
   }
 
-  private static final Function<com.google.common.collect.Range<Integer>, Range> RANGE_TRANSFORM = new Function<com.google.common.collect.Range<Integer>, Range>() {
+  private static final Function<com.google.common.collect.Range<Integer>, Range> RANGE_TRANSFORM =
+      new Function<com.google.common.collect.Range<Integer>, Range>() {
     @Override
     public Range apply(com.google.common.collect.Range<Integer> input) {
       return Range.newBuilder().setBegin(input.lowerEndpoint()).setEnd(input.upperEndpoint())

@@ -47,10 +47,11 @@ public class CommandLineDriverSettingsModule extends AbstractModule {
 
   @NotNull
   @CmdLine(name = "mesos_master_address",
-  help = "Address for the mesos master, can be a socket address or zookeeper path.")
+      help = "Address for the mesos master, can be a socket address or zookeeper path.")
   private static final Arg<String> MESOS_MASTER_ADDRESS = Arg.create();
 
-  @CmdLine(name = "mesos_role", help = "role defined in mesos, aurora register framework with this role")
+  @CmdLine(name = "mesos_role",
+      help = "role defined in mesos, aurora register framework with this role")
   private static final Arg<String> MESOS_ROLE = Arg.create();
 
   @VisibleForTesting
